@@ -542,7 +542,7 @@ def export_event(df, poly_wav, main_fold, proc_folder, station_selection,
                 if poly_wav:
                     path_file_wav = os.path.join(wav_save, "%s_all_channels_%s.WAV" % (tr.stats.station, tr.stats.starttime))
                     with SoundFile(path_file_wav, 'w', samplerate=framerate, channels=4, 
-                                    subtype=bitrate, endian=None, format=None, closefd=True) as f:
+                                    subtype=bitrate) as f:
                         f.write(collect_tr)
                     f.close()
 
@@ -550,6 +550,7 @@ def export_event(df, poly_wav, main_fold, proc_folder, station_selection,
                     for j, cha in enumerate(collect_cha):
 
                         path_file_wav = os.path.join(wav_save, "%s_%s_%s.WAV" % (tr.stats.station, cha, tr.stats.starttime))
+                        print (path_file_wav, framerate, bitrate)
                         with SoundFile(path_file_wav, 'w', samplerate=framerate, channels=1, 
                                     subtype=bitrate, endian=None, format=None, closefd=True) as f:
                             f.write(collect_tr[:,j])
