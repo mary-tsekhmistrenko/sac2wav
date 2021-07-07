@@ -90,7 +90,7 @@ def read_station_information(save_path, main_folder):
     return df
 
 
-def generate_output_folders(mode, save_path, save_figs):
+def generate_output_folders(mode, save_path):
     # Create a WAV folder if it does not already exisit
     if mode == 'event':
         wav_save = os.path.join(save_path, 'WAV_events')
@@ -109,11 +109,10 @@ def generate_output_folders(mode, save_path, save_figs):
     else:
         sys.exit(f'Mode: {mode} does not exist or is not implemented. Forced exit!')
 
-    # Create folder to save figs if plots are choosen to be saved
-    if save_figs:
-        save_fig_path = os.path.join(save_path, 'plots')
-        if not os.path.isdir(save_fig_path):
-            os.makedirs(save_fig_path)
+    # Create folder to save figs
+    save_fig_path = os.path.join(save_path, 'plots')
+    if not os.path.isdir(save_fig_path):
+        os.makedirs(save_fig_path)
     
     return wav_save, save_fig_path
 
