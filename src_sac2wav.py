@@ -21,12 +21,13 @@ import os
 import sys
 import time
 import glob
+import pickle as pkl
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from obspy import read
+from obspy import read, UTCDateTime
 from soundfile import SoundFile
 from natsort import natsorted
 
@@ -120,14 +121,44 @@ def generate_output_folders(mode, save_path):
 
 # -----------------------------------------------------------------------
 
-def export_continuous(df, poly_wav, proc_folder, station_selection, 
-                 framerate, bitrate, save_path, wav_save, plot_waveforms):
+def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_continuous, station_selection,
+                      framerate, bitrate, wav_save, plot_waveforms):
 
     fsr = open(os.path.join(wav_save, 'sampling_rate_information.txt'), 'w')
     fsr.write('# station \t|\t channel \t|\t sampling rate \t|\t frame rate \t|\t conversion: 60 min SAC to XX min WAV \n')
 
     uniq_modes = natsorted(df['mode'].unique())
     uniq_sta = df['station'].unique()
+
+    counter = 0
+    days_to_proc = []
+    all_folders = natsorted (glob.glob(os.path.join(dmt_folder, f'continuous*')))
+    for folder in all_folders:
+        pklo = open(os.path.join(folder, 'info', 'event.pkl'), 'rb')
+        pkll = pkl.load(pklo)
+        cont_date = pkll['datetime']
+        if cont_date < UTCDateTime(proc_wavs_continuous[0]):
+            continue
+        
+        cont_folder = os.path.basename(folder)
+        
+        if counter >= proc_wavs_continuous[1]:
+            continue
+        counter += 1
+        days_to_proc.append(cont_folder)
+    
+    print(f'Days to process:\n{days_to_proc}')
+
+    if folder_to_process in 'processed':
+        proc_folder = 'processed'
+    elif folder_to_process in 'proc_resamp':
+         proc_folder = 'proc_resamp'
+    elif folder_to_process in 'proc_instr':
+        proc_folder = 'proc_instr'
+    elif folder_to_process in 'noinstr_noresamp':
+        proc_folder = 'noinstr_noresamp'
+    else:
+        sys.exit(f'{folder_tor_process} is not defines. Forced Exit.')
 
     for i, sta in enumerate(uniq_sta):
         if station_selection != '*' and not sta in station_selection:
@@ -160,10 +191,16 @@ def export_continuous(df, poly_wav, proc_folder, station_selection,
                 # rest the trace/stream for every channel
                 st = None
                 for k, mod in enumerate(uniq_modes):
+
+                    if mod not in days_to_proc:
+                        continue
+                    else:
+                        pass
+
                     print(f'\t\tFolder {mod}')
 
                     try:
-                        chans = glob.glob(os.path.join(save_path, mod, proc_folder, f'*{sta}*{cha}'))[0]
+                        chans = glob.glob(os.path.join(dmt_folder, mod, f'{proc_folder}', f'*{sta}*{cha}*'))[0]
                         print(f'\t\t\tAdding {os.path.basename(chans)}.')
                     except Exception as exp:
                         print(f'\t\t\t--Missing: {mod}/{proc_folder}/*{sta}*{cha}')
@@ -276,8 +313,8 @@ def export_continuous(df, poly_wav, proc_folder, station_selection,
 
 # -----------------------------------------------------------------------
 
-def export_day(df, poly_wav, proc_folder, station_selection, 
-                 framerate, bitrate, save_path, wav_save, plot_waveforms):
+def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, station_selection,
+                      framerate, bitrate, wav_save, plot_waveforms):
 
     # save this in the WAV folder
     fsr = open(os.path.join(wav_save, 'sampling_rate_information.txt'), 'w')
@@ -286,7 +323,43 @@ def export_day(df, poly_wav, proc_folder, station_selection,
     uniq_modes = natsorted(df['mode'].unique())
     uniq_sta = df['station'].unique()
 
+    counter = 0
+    days_to_proc = []
+    all_folders = natsorted (glob.glob(os.path.join(dmt_folder, f'continuous*')))
+    
+    for folder in all_folders:
+        pklo = open(os.path.join(folder, 'info', 'event.pkl'), 'rb')
+        pkll = pkl.load(pklo)
+        cont_date = pkll['datetime']
+        if cont_date < UTCDateTime(proc_wavs_days[0]):
+            continue
+        
+        cont_folder = os.path.basename(folder)
+        
+        if counter >= proc_wavs_days[1]:
+            continue
+        counter += 1
+        days_to_proc.append(cont_folder)
+    
+    print(f'Days to process:\n{days_to_proc}')
+
+    if folder_to_process in 'processed':
+        proc_folder = 'processed'
+    elif folder_to_process in 'proc_resamp':
+         proc_folder = 'proc_resamp'
+    elif folder_to_process in 'proc_instr':
+        proc_folder = 'proc_instr'
+    elif folder_to_process in 'noinstr_noresamp':
+        proc_folder = 'noinstr_noresamp'
+    else:
+        sys.exit(f'{folder_tor_process} is not defines. Forced Exit.')
+
     for mod in uniq_modes:
+        if mod not in days_to_proc:
+            continue
+        else:
+            pass
+
         print(f'Searching SACs in {mod}')
 
         for sta in uniq_sta:
@@ -319,12 +392,11 @@ def export_day(df, poly_wav, proc_folder, station_selection,
                 n_data = None
 
                 for cha in cha_grp:
+
                     try:
-                        chan = glob.glob(os.path.join(save_path, mod, proc_folder, f'*{sta}*{cha}*'))[0]
-                        
+                        chan = glob.glob(os.path.join(dmt_folder, mod, proc_folder, f'*{sta}*{cha}*'))[0]
                         print (f'\t\t\tFound {sta}.{cha}')
                         tr = read(chan)[0]
-
                         data = tr.data / abs(tr.data).max()
 
                     except Exception as exp:
@@ -421,17 +493,41 @@ def export_day(df, poly_wav, proc_folder, station_selection,
 #
 # -----------------------------------------------------------------------
 
-def export_event(df, poly_wav, main_fold, proc_folder, station_selection, 
-                 framerate, bitrate, save_path, wav_save, plot_waveforms):
+def export_event(df, poly_wav, dmt_folder, folder_to_process, 
+                 proc_wavs_events, station_selection, framerate, bitrate, 
+                 wav_save, plot_waveforms):
     
+
     # save this in the WAV folder
     fsr = open(os.path.join(wav_save, 'sampling_rate_information.txt'), 'w')
     fsr.write('# station \t|\t channel \t|\t sampling rate \t|\t frame rate \t|\t conversion: 60 min SAC to XX min WAV \n')
 
     uniq_modes = df['mode'].unique()
     uniq_sta = df['station'].unique()
+
+    if folder_to_process in 'processed':
+        proc_folder = 'processed'
+    elif folder_to_process in 'proc_resamp':
+         proc_folder = 'proc_resamp'
+    elif folder_to_process in 'proc_instr':
+        proc_folder = 'proc_instr'
+    elif folder_to_process in 'noinstr_noresamp':
+        proc_folder = 'noinstr_noresamp'
+    else:
+        sys.exit(f'{folder_tor_process} is not defines. Forced Exit.')
     
     for mod in uniq_modes:
+        
+        # only selected events
+        if mod in proc_wavs_events:
+            pass
+        # let everything pass
+        elif '*_*.*' in proc_wavs_events:
+            pass
+        # skip
+        else:
+            continue
+
         print(f'Searching SACs in {mod}')
 
         for sta in uniq_sta:
@@ -464,16 +560,16 @@ def export_event(df, poly_wav, main_fold, proc_folder, station_selection,
                 n_data = None
 
                 for cha in cha_grp:
-                    
                     try:
-                        chan = glob.glob(os.path.join(save_path, mod, proc_folder, f'*{sta}*{cha}*'))[0]
+                        
+                        chan = glob.glob(os.path.join(dmt_folder, mod, proc_folder, f'*{sta}*{cha}*'))[0]
                         print (f'\t\t\tFound {sta}.{cha}')
                         tr = read(chan)[0]
                         data = tr.data / abs(tr.data).max()
 
                     except Exception as exp:
-                        print(f'{exp} \nNo station available in:')
-                        print(os.path.join(save_path, mod, proc_folder, f'*{sta}*{cha}*'))
+                        print(f'\t\t\t{exp}\n\t\t\tNo station available in:')
+                        print('\t\t\t', os.path.join(dmt_folder, mod,  proc_folder, f'*{sta}*{cha}*'))
                         continue
 
                     # order of channels to export needs to be like this: ['HHH', 'HHY', 'HHZ', 'HHX']
@@ -536,10 +632,16 @@ def export_event(df, poly_wav, main_fold, proc_folder, station_selection,
                 collect_cha = [h_cha, n_cha, e_cha, z_cha]
 
                 if plot_waveforms:
-                    plot_waves(sta, collect_tr, collect_cha, tr.stats.sampling_rate, mod[:-2], proc_folder, wav_save)
+                    date_name = (f'{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
+                           f'{tr.stats.starttime.date.day:02d}T{tr.stats.starttime.time.hour:02d}-'
+                           f'{tr.stats.starttime.time.minute:02d}-{tr.stats.starttime.time.second:02d}')
+                    plot_waves(sta, collect_tr, collect_cha, tr.stats.sampling_rate, date_name, proc_folder, wav_save)
 
                 if poly_wav:
-                    path_file_wav = os.path.join(wav_save, "%s_all_channels_%s.WAV" % (tr.stats.station, tr.stats.starttime))
+                    file_name = (f'{tr.stats.station}_all_channels_{folder_to_process}_{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
+                                    f'{tr.stats.starttime.date.day:02d}T{tr.stats.starttime.time.hour:02d}-'
+                                    f'{tr.stats.starttime.time.minute:02d}-{tr.stats.starttime.time.second:02d}.WAV')
+                    path_file_wav = os.path.join(wav_save, file_name)
                     with SoundFile(path_file_wav, 'w', samplerate=framerate, channels=4, 
                                     subtype=bitrate, endian=None, format=None, closefd=True) as f:
                         f.write(collect_tr)
@@ -547,8 +649,10 @@ def export_event(df, poly_wav, main_fold, proc_folder, station_selection,
 
                 else:
                     for j, cha in enumerate(collect_cha):
-
-                        path_file_wav = os.path.join(wav_save, "%s_%s_%s.WAV" % (tr.stats.station, cha, tr.stats.starttime))
+                        file_name = (f'{tr.id}_{folder_to_process}_{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
+                                    f'{tr.stats.starttime.date.day:02d}T{tr.stats.starttime.time.hour:02d}-'
+                                    f'{tr.stats.starttime.time.minute:02d}-{tr.stats.starttime.time.second:02d}.WAV')
+                        path_file_wav = os.path.join(wav_save, file_name)
                         with SoundFile(path_file_wav, 'w', samplerate=framerate, channels=1, 
                                     subtype=bitrate, endian=None, format=None, closefd=True) as f:
                             f.write(collect_tr[:,j])
@@ -561,7 +665,7 @@ def export_event(df, poly_wav, main_fold, proc_folder, station_selection,
 
 # -----------------------------------------------------------------------
 
-def plot_waves(sta, collect_tr, collect_cha, sampling_rate, event_id, proc_folder, wav_save):
+def plot_waves(sta, collect_tr, collect_cha, sampling_rate, date_name, proc_folder, wav_save):
 
     plt.ioff()
     fig, axs = plt.subplots(4,2, figsize=(15, 15), facecolor='w', edgecolor='k')
@@ -584,7 +688,7 @@ def plot_waves(sta, collect_tr, collect_cha, sampling_rate, event_id, proc_folde
         axs[j+1].set_xlim(0.001, 30)
         j += 2
 
-    plt.savefig(os.path.join(wav_save, f'{sta}_{event_id}_{proc_folder}_{collect_cha[0]}_{collect_cha[1]}_{collect_cha[2]}_{collect_cha[3]}.png'), dpi=300)
+    plt.savefig(os.path.join(wav_save, f'{sta}_{collect_cha[0]}_{collect_cha[1]}_{collect_cha[2]}_{collect_cha[3]}_{proc_folder}_{date_name}.png'), dpi=300)
     plt.clf()
     plt.close()
 
