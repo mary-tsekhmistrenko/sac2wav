@@ -292,7 +292,11 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
                 plot_waves(sta, collect_tr, collect_cha, tr.stats.sampling_rate, 'continuous', proc_folder, wav_save)
 
             if poly_wav:
-                path_file_wav = os.path.join(wav_save, "%s_all_channels_%s.WAV" % (tr.stats.station, tr.stats.starttime))
+                file_name = (f'{tr.stats.station}_all_channels_{folder_to_process}_{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
+                             f'{tr.stats.starttime.date.day:02d}T{tr.stats.starttime.time.hour:02d}-'
+                             f'{tr.stats.starttime.time.minute:02d}-{tr.stats.starttime.time.second:02d}.WAV')
+
+                path_file_wav = os.path.join(wav_save, file_name)
                 with SoundFile(path_file_wav, 'w', samplerate=framerate, channels=4, 
                                 subtype=bitrate, endian=None, format=None, closefd=True) as f:
                     f.write(collect_tr)
@@ -471,7 +475,11 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
                     plot_waves(sta, collect_tr, collect_cha, tr.stats.sampling_rate, f'day_{mod}', proc_folder, wav_save)
 
                 if poly_wav:
-                    path_file_wav = os.path.join(wav_save, "%s_%s_%s_all_channels_%s.WAV" % (tr.stats.station, mod, proc_folder, tr.stats.starttime))
+                    file_name = (f'{tr.stats.station}_all_channels_{folder_to_process}_{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
+                                 f'{tr.stats.starttime.date.day:02d}T{tr.stats.starttime.time.hour:02d}-'
+                                 f'{tr.stats.starttime.time.minute:02d}-{tr.stats.starttime.time.second:02d}.WAV')
+
+                    path_file_wav = os.path.join(wav_save, file_name)
                     with SoundFile(path_file_wav, 'w', samplerate=framerate, channels=4, 
                                     subtype=bitrate, endian=None, format=None, closefd=True) as f:
                         f.write(collect_tr)
