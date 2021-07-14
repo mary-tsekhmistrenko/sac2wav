@@ -292,7 +292,7 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
                 plot_waves(sta, collect_tr, collect_cha, tr.stats.sampling_rate, 'continuous', proc_folder, wav_save)
 
             if poly_wav:
-                file_name = (f'{tr.stats.station}_all_channels_{folder_to_process}_{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
+                file_name = (f'{tr.stats.station}_{collect_cha[0]}_{collect_cha[1]}_{collect_cha[2]}_{collect_cha[3]}_{folder_to_process}_{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
                              f'{tr.stats.starttime.date.day:02d}T{tr.stats.starttime.time.hour:02d}-'
                              f'{tr.stats.starttime.time.minute:02d}-{tr.stats.starttime.time.second:02d}.WAV')
 
@@ -475,7 +475,7 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
                     plot_waves(sta, collect_tr, collect_cha, tr.stats.sampling_rate, f'day_{mod}', proc_folder, wav_save)
 
                 if poly_wav:
-                    file_name = (f'{tr.stats.station}_all_channels_{folder_to_process}_{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
+                    file_name = (f'{tr.stats.station}_{collect_cha[0]}_{collect_cha[1]}_{collect_cha[2]}_{collect_cha[3]}_{folder_to_process}_{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
                                  f'{tr.stats.starttime.date.day:02d}T{tr.stats.starttime.time.hour:02d}-'
                                  f'{tr.stats.starttime.time.minute:02d}-{tr.stats.starttime.time.second:02d}.WAV')
 
@@ -646,7 +646,7 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
                     plot_waves(sta, collect_tr, collect_cha, tr.stats.sampling_rate, date_name, proc_folder, wav_save)
 
                 if poly_wav:
-                    file_name = (f'{tr.stats.station}_all_channels_{folder_to_process}_{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
+                    file_name = (f'{tr.stats.station}_{collect_cha[0]}_{collect_cha[1]}_{collect_cha[2]}_{collect_cha[3]}_{folder_to_process}_{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
                                     f'{tr.stats.starttime.date.day:02d}T{tr.stats.starttime.time.hour:02d}-'
                                     f'{tr.stats.starttime.time.minute:02d}-{tr.stats.starttime.time.second:02d}.WAV')
                     path_file_wav = os.path.join(wav_save, file_name)
