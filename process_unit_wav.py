@@ -171,7 +171,10 @@ def process_unit(tr_add, target_path, input_dics, staev_ar):
 
     with SoundFile(save_path_wav, 'w', samplerate=framerate, channels=1, 
                    subtype=bitrate, endian=None, format=None, closefd=True) as f:
-        f.write(tr.data)
+        
+        data = tr.data / abs(tr.data).max()
+        f.write(data*0.95)
+        
         print("Writing WAV file for %s" % tr.id)
     
     f.close() 
