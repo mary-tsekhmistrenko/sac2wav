@@ -121,7 +121,7 @@ def generate_output_folders(mode, save_path):
 
 # -----------------------------------------------------------------------
 
-def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_continuous, station_selection,
+def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_continuous, station_selection, channel_selection,
                       framerate, bitrate, wav_save, plot_waveforms):
 
     fsr = open(os.path.join(wav_save, 'sampling_rate_information.txt'), 'w')
@@ -168,7 +168,12 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
         df_sta = df[df["station"] == sta]
         
         for cha_grp in target_cha:
-            
+            if cha_grp[0][0] == channel_selection:
+                pass
+            elif channel_selection == '*':
+                pass
+            else:
+                continue
             df_sta_cha = df_sta[df_sta["channel"].isin(cha_grp)]
             
             # because it not contains all channels for every for every day
@@ -186,6 +191,7 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
             z_data = None
             n_data = None
             for j, cha in enumerate(cha_grp):
+                
                 print(f'\tChannel {cha}.')
                 
                 # rest the trace/stream for every channel
@@ -285,8 +291,12 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
             # order of channels to export needs to be like this: 
             # ['*HH', '*HY', '*HZ', '*HX']
                     # writing the wave file
-            collect_tr = np.c_[h_data, n_data, e_data, z_data]
-            collect_cha = [h_cha, n_cha, e_cha, z_cha]
+            try:
+                collect_tr = np.c_[h_data, n_data, e_data, z_data]
+                collect_cha = [h_cha, n_cha, e_cha, z_cha]
+            except Exception as exp:
+                print(f'\n\nError: {exp}\n{collect_cha} | {sta}')
+                continue
 
             if plot_waveforms:
                 plot_waves(sta, collect_tr, collect_cha, tr.stats.sampling_rate, 'continuous', proc_folder, wav_save)
@@ -317,7 +327,7 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
 
 # -----------------------------------------------------------------------
 
-def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, station_selection,
+def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, station_selection, channel_selection,
                       framerate, bitrate, wav_save, plot_waveforms):
 
     # save this in the WAV folder
@@ -375,6 +385,12 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
             df_sta_mod = df_sta[df_sta["mode"] == mod]
 
             for cha_grp in target_cha:
+                if cha_grp[0][0] == channel_selection:
+                    pass
+                elif channel_selection == '*':
+                    pass
+                else:
+                    continue
                 # since it is possible to have different channel groups for one station this part
                 # ensures that 
                 df_grp = df_sta_mod[df_sta_mod["channel"].isin(cha_grp)]
@@ -468,7 +484,7 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
                     collect_tr = np.c_[h_data, n_data, e_data, z_data]
                     collect_cha = [h_cha, n_cha, e_cha, z_cha]
                 except Exception as exp:
-                    print(exp)
+                    print(f'\n\nError: {exp}\n{collect_cha} | {sta}')
                     continue
 
                 if plot_waveforms:
@@ -502,8 +518,8 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
 # -----------------------------------------------------------------------
 
 def export_event(df, poly_wav, dmt_folder, folder_to_process, 
-                 proc_wavs_events, station_selection, framerate, bitrate, 
-                 wav_save, plot_waveforms):
+                 proc_wavs_events, station_selection, channel_selection, 
+                 framerate, bitrate, wav_save, plot_waveforms):
     
 
     # save this in the WAV folder
@@ -547,17 +563,23 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
             df_sta_mod = df_sta[df_sta["mode"] == mod]
 
             for cha_grp in target_cha:
+                if cha_grp[0][0] == channel_selection:
+                    pass
+                elif channel_selection == '*':
+                    pass
+                else:
+                    continue
                 # since it is possible to have different channel groups for one station this part
                 # ensures that 
                 df_grp = df_sta_mod[df_sta_mod["channel"].isin(cha_grp)]
-                
+
                 if len(df_grp) == 4 or len(df_grp) == 3:
                     pass
                 elif len(df_grp) < 3:
                     continue
                 else:
                     continue
-                
+    
                 print(f'\t\tSearching in {cha_grp}')
         
                 # fill these lists with the traces
@@ -636,8 +658,12 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
                 fsr.write('\n')
 
                 # writing the wave file
-                collect_tr = np.c_[h_data, n_data, e_data, z_data]
-                collect_cha = [h_cha, n_cha, e_cha, z_cha]
+                try:
+                    collect_tr = np.c_[h_data, n_data, e_data, z_data]
+                    collect_cha = [h_cha, n_cha, e_cha, z_cha]
+                except Exception as exp:
+                    print(f'\n\nError: {exp}\n{collect_cha} | {sta}')
+                    continue
 
                 if plot_waveforms:
                     date_name = (f'{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
