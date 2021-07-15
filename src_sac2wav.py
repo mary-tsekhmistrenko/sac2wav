@@ -156,7 +156,7 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
     elif folder_to_process in 'proc_instr':
         proc_folder = 'proc_instr'
     elif folder_to_process in 'noinstr_noresamp':
-        proc_folder = 'noinstr_noresamp'
+        proc_folder = 'proc_noinstr_noresamp'
     else:
         sys.exit(f'{folder_tor_process} is not defines. Forced Exit.')
 
@@ -174,6 +174,7 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
                 pass
             else:
                 continue
+            
             df_sta_cha = df_sta[df_sta["channel"].isin(cha_grp)]
             
             # because it not contains all channels for every for every day
@@ -295,7 +296,7 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
                 collect_tr = np.c_[h_data, n_data, e_data, z_data]
                 collect_cha = [h_cha, n_cha, e_cha, z_cha]
             except Exception as exp:
-                print(f'\n\nError: {exp}\n{collect_cha} | {sta}')
+                print(f'\n\nError: {exp}\nFor station:{sta}')
                 continue
 
             if plot_waveforms:
@@ -364,7 +365,7 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
     elif folder_to_process in 'proc_instr':
         proc_folder = 'proc_instr'
     elif folder_to_process in 'noinstr_noresamp':
-        proc_folder = 'noinstr_noresamp'
+        proc_folder = 'proc_noinstr_noresamp'
     else:
         sys.exit(f'{folder_tor_process} is not defines. Forced Exit.')
 
@@ -484,7 +485,7 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
                     collect_tr = np.c_[h_data, n_data, e_data, z_data]
                     collect_cha = [h_cha, n_cha, e_cha, z_cha]
                 except Exception as exp:
-                    print(f'\n\nError: {exp}\n{collect_cha} | {sta}')
+                    print(f'\n\nError: {exp}\nFor station:{sta}')
                     continue
 
                 if plot_waveforms:
@@ -536,7 +537,7 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
     elif folder_to_process in 'proc_instr':
         proc_folder = 'proc_instr'
     elif folder_to_process in 'noinstr_noresamp':
-        proc_folder = 'noinstr_noresamp'
+        proc_folder = 'proc_noinstr_noresamp'
     else:
         sys.exit(f'{folder_tor_process} is not defines. Forced Exit.')
     
@@ -662,7 +663,7 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
                     collect_tr = np.c_[h_data, n_data, e_data, z_data]
                     collect_cha = [h_cha, n_cha, e_cha, z_cha]
                 except Exception as exp:
-                    print(f'\n\nError: {exp}\n{collect_cha} | {sta}')
+                    print(f'\n\nError: {exp}\nFor station:{sta}')
                     continue
 
                 if plot_waveforms:
