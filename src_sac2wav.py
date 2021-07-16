@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from obspy import read, UTCDateTime
+from obspy import read, UTCDateTime, Stream, Trace
 from soundfile import SoundFile
 from natsort import natsorted
 
@@ -227,12 +227,13 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
                 
                 tr = st[0]
                 data = tr.data / abs(tr.data).max()
-
+                len(data)
                 # order of channels to export needs to be like this: 
                 # ['*HH', '*HY', '*HZ', '*HX']
                 if tr.stats.channel[-1] in ['E', 'X', '1']:
                     e_data = data*0.95
                     e_cha = tr.stats.channel
+                    e_tr = tr
 
                     fsr.write(f'{sta} \t\t {tr.stats.channel} \t\t {tr.stats.sampling_rate} \t\t {framerate} \t\t {(60*60*tr.stats.sampling_rate)/framerate} \n')
                     channel_counter += 1
@@ -240,6 +241,7 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
                 elif tr.stats.channel[-1] in ['N', 'Y', '2']:
                     n_data = data*0.95
                     n_cha = tr.stats.channel
+                    n_tr = tr
 
                     fsr.write(f'{sta} \t\t {tr.stats.channel} \t\t {tr.stats.sampling_rate} \t\t {framerate} \t\t {(60*60*tr.stats.sampling_rate)/framerate} \n')
                     channel_counter += 1
@@ -247,6 +249,7 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
                 elif tr.stats.channel[-1] in ['Z']:
                     z_data = data*0.95
                     z_cha = tr.stats.channel
+                    z_tr = tr
 
                     fsr.write(f'{sta} \t\t {tr.stats.channel} \t\t {tr.stats.sampling_rate} \t\t {framerate} \t\t {(60*60*tr.stats.sampling_rate)/framerate} \n')
                     channel_counter += 1
@@ -254,6 +257,7 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
                 elif tr.stats.channel[-1] in ['H']:
                     h_data = data*0.95
                     h_cha = tr.stats.channel
+                    h_tr = tr
 
                     fsr.write(f'{sta} \t\t {tr.stats.channel} \t\t {tr.stats.sampling_rate} \t\t {framerate} \t\t {(60*60*tr.stats.sampling_rate)/framerate} \n')
                     channel_counter += 1
@@ -268,6 +272,11 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
             if (channel_counter == 3 and h_data == None):
                 print('\t\t\tAdding a zero trace for the hydrophone channel...')
                 h_data = len(z_data)*[0]
+                h_tr = Trace(np.array(h_data))
+                h_tr.stats.starttime = z_tr.stats.starttime
+                h_tr.stats.sampling_rate = z_tr.stats.sampling_rate
+                h_tr.stats.channel = '0DH'
+                
                 channel_counter += 1
                 h_cha = '0DH'
 
@@ -292,8 +301,16 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
             # order of channels to export needs to be like this: 
             # ['*HH', '*HY', '*HZ', '*HX']
                     # writing the wave file
+
+            st = length_checker(Stream(traces=[h_tr, n_tr, e_tr, z_tr]))
+
+            h_da = st.select(channel=h_cha)
+            z_da = st.select(channel=z_cha)
+            e_da = st.select(channel=e_cha)
+            n_da = st.select(channel=n_cha)
+
             try:
-                collect_tr = np.c_[h_data, n_data, e_data, z_data]
+                collect_tr = np.c_[h_da[0].data, n_da[0].data, e_da[0].data, z_da[0].data]
                 collect_cha = [h_cha, n_cha, e_cha, z_cha]
             except Exception as exp:
                 print(f'\n\nError: {exp}\nFor station:{sta}')
@@ -429,6 +446,7 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
                     if tr.stats.channel[-1] in ['E', 'X', '1']:
                         e_data = data*0.95
                         e_cha = tr.stats.channel
+                        e_tr = tr
 
                         fsr.write(f'{sta} \t\t {tr.stats.channel} \t\t {tr.stats.sampling_rate} \t\t {framerate} \t\t {(60*60*tr.stats.sampling_rate)/framerate} \n')
                         channel_counter += 1
@@ -436,6 +454,7 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
                     elif tr.stats.channel[-1] in ['N', 'Y', '2']:
                         n_data = data*0.95
                         n_cha = tr.stats.channel
+                        n_tr = tr
 
                         fsr.write(f'{sta} \t\t {tr.stats.channel} \t\t {tr.stats.sampling_rate} \t\t {framerate} \t\t {(60*60*tr.stats.sampling_rate)/framerate} \n')
                         channel_counter += 1
@@ -443,6 +462,7 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
                     elif tr.stats.channel[-1] in ['Z']:
                         z_data = data*0.95
                         z_cha = tr.stats.channel
+                        z_tr = tr
 
                         fsr.write(f'{sta} \t\t {tr.stats.channel} \t\t {tr.stats.sampling_rate} \t\t {framerate} \t\t {(60*60*tr.stats.sampling_rate)/framerate} \n')
                         channel_counter += 1
@@ -450,6 +470,7 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
                     elif tr.stats.channel[-1] in ['H']:
                         h_data = data*0.95
                         h_cha = tr.stats.channel
+                        h_tr = tr
 
                         fsr.write(f'{sta} \t\t {tr.stats.channel} \t\t {tr.stats.sampling_rate} \t\t {framerate} \t\t {(60*60*tr.stats.sampling_rate)/framerate} \n')
                         channel_counter += 1
@@ -460,6 +481,11 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
                 if (channel_counter == 3 and h_data == None):
                     print('\t\t\tAdding a zero trace for the hydrophone channel...')
                     h_data = len(z_data)*[0]
+                    h_tr = Trace(np.array(h_data))
+                    h_tr.stats.starttime = z_tr.stats.starttime
+                    h_tr.stats.sampling_rate = z_tr.stats.sampling_rate
+                    h_tr.stats.channel = '0DH'
+                    
                     channel_counter += 1
                     h_cha = '0DH'
 
@@ -480,7 +506,20 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
 
                 fsr.write('\n')
 
-                # writing the wave file
+                st = length_checker(Stream(traces=[h_tr, n_tr, e_tr, z_tr]))
+                
+                h_da = st.select(channel=h_cha)
+                z_da = st.select(channel=z_cha)
+                e_da = st.select(channel=e_cha)
+                n_da = st.select(channel=n_cha)
+
+                try:
+                    collect_tr = np.c_[h_da[0].data, n_da[0].data, e_da[0].data, z_da[0].data]
+                    collect_cha = [h_cha, n_cha, e_cha, z_cha]
+                except Exception as exp:
+                    print(f'\n\nError: {exp}\nFor station:{sta}')
+                    continue
+
                 try:
                     collect_tr = np.c_[h_data, n_data, e_data, z_data]
                     collect_cha = [h_cha, n_cha, e_cha, z_cha]
@@ -607,6 +646,7 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
                     if tr.stats.channel[-1] in ['E', 'X', '1']:
                         e_data = data*0.95
                         e_cha = tr.stats.channel
+                        e_tr = tr
 
                         fsr.write(f'{sta} \t\t {tr.stats.channel} \t\t {tr.stats.sampling_rate} \t\t {framerate} \t\t {(60*60*tr.stats.sampling_rate)/framerate} \n')
                         channel_counter += 1
@@ -614,6 +654,7 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
                     elif tr.stats.channel[-1] in ['N', 'Y', '2']:
                         n_data = data*0.95
                         n_cha = tr.stats.channel
+                        n_tr = tr
 
                         fsr.write(f'{sta} \t\t {tr.stats.channel} \t\t {tr.stats.sampling_rate} \t\t {framerate} \t\t {(60*60*tr.stats.sampling_rate)/framerate} \n')
                         channel_counter += 1
@@ -621,6 +662,7 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
                     elif tr.stats.channel[-1] in ['Z']:
                         z_data = data*0.95
                         z_cha = tr.stats.channel
+                        z_tr = tr
 
                         fsr.write(f'{sta} \t\t {tr.stats.channel} \t\t {tr.stats.sampling_rate} \t\t {framerate} \t\t {(60*60*tr.stats.sampling_rate)/framerate} \n')
                         channel_counter += 1
@@ -628,6 +670,7 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
                     elif tr.stats.channel[-1] in ['H']:
                         h_data = data*0.95
                         h_cha = tr.stats.channel
+                        h_tr = tr
 
                         fsr.write(f'{sta} \t\t {tr.stats.channel} \t\t {tr.stats.sampling_rate} \t\t {framerate} \t\t {(60*60*tr.stats.sampling_rate)/framerate} \n')
                         channel_counter += 1
@@ -638,6 +681,11 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
                 if (channel_counter == 3 and h_data == None):
                     print('\t\t\tAdding a zero trace for the hydrophone channel...')
                     h_data = len(z_data)*[0]
+                    h_tr = Trace(np.array(h_data))
+                    h_tr.stats.starttime = z_tr.stats.starttime
+                    h_tr.stats.sampling_rate = z_tr.stats.sampling_rate
+                    h_tr.stats.channel = '0DH'
+                    
                     channel_counter += 1
                     h_cha = '0DH'
 
@@ -659,13 +707,20 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
                 fsr.write('\n')
 
                 # writing the wave file
+                st = length_checker(Stream(traces=[h_tr, n_tr, e_tr, z_tr]))
+                
+                h_da = st.select(channel=h_cha)
+                z_da = st.select(channel=z_cha)
+                e_da = st.select(channel=e_cha)
+                n_da = st.select(channel=n_cha)
+
                 try:
-                    collect_tr = np.c_[h_data, n_data, e_data, z_data]
+                    collect_tr = np.c_[h_da[0].data, n_da[0].data, e_da[0].data, z_da[0].data]
                     collect_cha = [h_cha, n_cha, e_cha, z_cha]
                 except Exception as exp:
                     print(f'\n\nError: {exp}\nFor station:{sta}')
                     continue
-
+            
                 if plot_waveforms:
                     date_name = (f'{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
                            f'{tr.stats.starttime.date.day:02d}T{tr.stats.starttime.time.hour:02d}-'
@@ -727,7 +782,28 @@ def plot_waves(sta, collect_tr, collect_cha, sampling_rate, date_name, proc_fold
     plt.clf()
     plt.close()
 
-   
+
+# -----------------------------------------------------------------------
+# check for same length in traces
+# -----------------------------------------------------------------------
+
+def length_checker(st):
+    
+    samples = []
+    starttime = []
+    endtime = []
+
+    for tr in st:
+        samples.append(tr.stats.npts)
+        starttime.append(tr.stats.starttime)
+        endtime.append(tr.stats.endtime)
+
+    if np.unique(samples) > 1:
+        st.trim(max(starttime), min(endtime))
+        return st
+    else:
+        return st
+
 
 # -----------------------------------------------------------------------
 # --------------------------------- END ---------------------------------
