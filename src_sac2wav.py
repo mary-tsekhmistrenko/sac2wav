@@ -64,7 +64,6 @@ target_cha = [
                 ["VM1", "VM2", "VMZ", "VDH"]
             ]
 
-
 def read_station_information(save_path, main_folder):
    
     # if not restricted in the input then all available stations will be searched
@@ -138,16 +137,17 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
         pkll = pkl.load(pklo)
         cont_date = pkll['datetime']
         if cont_date < UTCDateTime(proc_wavs_continuous[0]):
+            print(f'{UTCDateTime(proc_wavs_continuous[0])} < {cont_date}: Continue searching for starttime.')
             continue
-        
-        cont_folder = os.path.basename(folder)
-        
+
         if counter >= proc_wavs_continuous[1]:
-            continue
-        counter += 1
+            break
+
+        cont_folder = os.path.basename(folder)
         days_to_proc.append(cont_folder)
-    
-    print(f'Days to process:\n{days_to_proc}')
+        counter += 1
+
+    print(f'Days to process:\n\t{days_to_proc}')
 
     if folder_to_process in 'processed':
         proc_folder = 'processed'
@@ -164,181 +164,190 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
         if station_selection != '*' and not sta in station_selection:
             continue
         
-        print(f'Working on station {sta}')
+        print(f'Working on station: {sta}')
         df_sta = df[df["station"] == sta]
+
+        for loc in df_sta["location"].unique():
+            print(f'Location: {loc}')
+            df_net = df_sta[df_sta["location"].isin([loc])]
         
-        for cha_grp in target_cha:
-            if cha_grp[0][0] == channel_selection:
-                pass
-            elif channel_selection == '*':
-                pass
-            else:
-                continue
-            
-            df_sta_cha = df_sta[df_sta["channel"].isin(cha_grp)]
-            
-            # because it not contains all channels for every for every day
-            if len(df_sta_cha) == 4*len(uniq_modes) or len(df_sta_cha) == 3*len(uniq_modes):
-                pass
-            elif len(df_sta_cha) < 3*len(uniq_modes):
-                continue
-            else:
-                continue
-            
-            # fill these lists with the traces
-            channel_counter = 0
-            h_data = None
-            e_data = None
-            z_data = None
-            n_data = None
-            for j, cha in enumerate(cha_grp):
+            for cha_grp in target_cha:
                 
-                print(f'\tChannel {cha}.')
-                
-                # rest the trace/stream for every channel
-                st = None
-                for k, mod in enumerate(uniq_modes):
+                if cha_grp[0][0] == channel_selection:
+                    pass
+                elif channel_selection == '*':
+                    pass
+                else:
+                    continue
 
-                    if mod not in days_to_proc:
-                        continue
-                    else:
-                        pass
+                df_sta_cha = df_net[df_net["channel"].isin(cha_grp)]
 
-                    print(f'\t\tFolder {mod}')
+                # because not all channels are available for every for station
+                if len(df_sta_cha) == 4*len(uniq_modes) or len(df_sta_cha) == 3*len(uniq_modes):
+                    pass
+                elif len(df_sta_cha) < 3*len(uniq_modes):
+                    continue
+                else:
+                    continue
 
-                    try:
-                        chans = glob.glob(os.path.join(dmt_folder, mod, f'{proc_folder}', f'*{sta}*{cha}*'))[0]
-                        print(f'\t\t\tAdding {os.path.basename(chans)}.')
-                    except Exception as exp:
-                        print(f'\t\t\t--Missing: {mod}/{proc_folder}/*{sta}*{cha}')
+                # fill these lists with the traces
+                channel_counter = 0
+                h_data = None
+                e_data = None
+                z_data = None
+                n_data = None
+
+                print(f'Channel Group: {cha_grp}')
+                for j, cha in enumerate(cha_grp):
+                    print(f'\n\tChannel {cha}.')
+            
+                    # rest the trace/stream for every channel
+                    st = None
+                    for k, mod in enumerate(uniq_modes):
+                        if mod not in days_to_proc:
+                            continue
+                        else:
+                            pass
+                        
+                        print(f'\t\tFolder {mod}')
+                        try:
+                            chans = glob.glob(os.path.join(dmt_folder, mod, f'{proc_folder}', f'*{sta}*{loc}*{cha}*'))[0]
+                            print(f'\t\t\tAdding {os.path.basename(chans)}.')
+                        
+                        except Exception as exp:
+                            print(f'\t\t\t--Missing: {mod}/{proc_folder}/*{sta}*{loc}*{cha}')
+                            continue
+                        
+                        # merge to one long trace
+                        if k == 0:
+                            st = read(chans)
+                        if k > 0:
+                            st += read(chans)
+                        st.merge(method=1)
+                    
+                    # here I normalize the data, otherwise writing it out into WAV files clips the waveform
+                    if not st:
+                        # basically skip the channel
                         continue
                     
-                    # merge to one long trace
-                    if k == 0:
-                        st = read(chans)
-                    if k > 0:
-                        st += read(chans)
-                    st.merge(method=1)
-    
-                # here I normalize the data, otherwise writing it out into WAV files clips the waveform
-                if not st:
-                    # basically skip the channel
-                    continue
-                
-                tr = st[0]
-                data = tr.data / abs(tr.data).max()
-                len(data)
-                # order of channels to export needs to be like this: 
-                # ['*HH', '*HY', '*HZ', '*HX']
-                if tr.stats.channel[-1] in ['E', 'X', '1']:
-                    e_data = data*0.95
-                    e_cha = tr.stats.channel
-                    e_tr = tr
+                    tr = st[0]
+                    print(f'\tLength of trace: {tr.stats.npts}')
 
-                    fsr.write(f'{sta} \t\t {tr.stats.channel} \t\t {tr.stats.sampling_rate} \t\t {framerate} \t\t {(60*60*tr.stats.sampling_rate)/framerate} \n')
+                    data = tr.data / abs(tr.data).max()
+                    print(f'\tNormalizing channelwise after merging continuous waveforms.')
+                    # data = tr.data
+                    
+                    # order of channels to export needs to be like this: 
+                    # ['*HH', '*HY', '*HZ', '*HX']
+                    if tr.stats.channel[-1] in ['E', 'X', '1']:
+                        e_data = data*0.95
+                        e_cha = tr.stats.channel
+                        e_tr = tr
+
+                        fsr.write(f'{sta} \t\t {tr.stats.channel} \t\t {tr.stats.sampling_rate} \t\t {framerate} \t\t {(60*60*tr.stats.sampling_rate)/framerate} \n')
+                        channel_counter += 1
+
+                    elif tr.stats.channel[-1] in ['N', 'Y', '2']:
+                        n_data = data*0.95
+                        n_cha = tr.stats.channel
+                        n_tr = tr
+
+                        fsr.write(f'{sta} \t\t {tr.stats.channel} \t\t {tr.stats.sampling_rate} \t\t {framerate} \t\t {(60*60*tr.stats.sampling_rate)/framerate} \n')
+                        channel_counter += 1
+
+                    elif tr.stats.channel[-1] in ['Z']:
+                        z_data = data*0.95
+                        z_cha = tr.stats.channel
+                        z_tr = tr
+
+                        fsr.write(f'{sta} \t\t {tr.stats.channel} \t\t {tr.stats.sampling_rate} \t\t {framerate} \t\t {(60*60*tr.stats.sampling_rate)/framerate} \n')
+                        channel_counter += 1
+
+                    elif tr.stats.channel[-1] in ['H']:
+                        h_data = data*0.95
+                        h_cha = tr.stats.channel
+                        h_tr = tr
+
+                        fsr.write(f'{sta} \t\t {tr.stats.channel} \t\t {tr.stats.sampling_rate} \t\t {framerate} \t\t {(60*60*tr.stats.sampling_rate)/framerate} \n')
+                        channel_counter += 1
+
+                    else:
+                        sys.exit('This channel does not exist you are loading. Check what is happening! Forced Exit.')
+
+                    fsr.write('\n')
+                    # >>> END CHANNEL LOOP <<<<  
+
+
+                if (channel_counter == 3 and h_data == None):
+                    print('\t\t\tAdding a zero trace for the hydrophone channel...')
+                    h_data = len(z_data)*[0]
+                    h_tr = Trace(np.array(h_data))
+                    h_tr.stats.starttime = z_tr.stats.starttime
+                    h_tr.stats.sampling_rate = z_tr.stats.sampling_rate
+                    h_tr.stats.channel = '0DH'
+                    
                     channel_counter += 1
+                    h_cha = '0DH'
 
-                elif tr.stats.channel[-1] in ['N', 'Y', '2']:
-                    n_data = data*0.95
-                    n_cha = tr.stats.channel
-                    n_tr = tr
+                elif channel_counter < 3:
+                    print(f'\t\t\t{sta} does not have all channels {cha}. Continue to next station without writing a WAV file.')
+                    continue 
 
-                    fsr.write(f'{sta} \t\t {tr.stats.channel} \t\t {tr.stats.sampling_rate} \t\t {framerate} \t\t {(60*60*tr.stats.sampling_rate)/framerate} \n')
-                    channel_counter += 1
+                elif channel_counter == 4:
+                    pass
 
-                elif tr.stats.channel[-1] in ['Z']:
-                    z_data = data*0.95
-                    z_cha = tr.stats.channel
-                    z_tr = tr
-
-                    fsr.write(f'{sta} \t\t {tr.stats.channel} \t\t {tr.stats.sampling_rate} \t\t {framerate} \t\t {(60*60*tr.stats.sampling_rate)/framerate} \n')
-                    channel_counter += 1
-
-                elif tr.stats.channel[-1] in ['H']:
-                    h_data = data*0.95
-                    h_cha = tr.stats.channel
-                    h_tr = tr
-
-                    fsr.write(f'{sta} \t\t {tr.stats.channel} \t\t {tr.stats.sampling_rate} \t\t {framerate} \t\t {(60*60*tr.stats.sampling_rate)/framerate} \n')
-                    channel_counter += 1
+                elif (channel_counter == 3 and h_data != None):
+                    print('\t\t\t Another channel is missing. Exporting this trace regardless.')
+                    pass
 
                 else:
-                    sys.exit('This channel does not exist you are loading. Check what is happening! Forced Exit.')
+                    print(channel_counter, np.mean(collect_tr[:,0]))
+                    sys.exit(f'\nNumber of channels is {channel_counter}. \n\n Something unexpected happened and hence forced exit.')
 
                 fsr.write('\n')
-                # >>> END CHANNEL LOOP <<<<  
-
-
-            if (channel_counter == 3 and h_data == None):
-                print('\t\t\tAdding a zero trace for the hydrophone channel...')
-                h_data = len(z_data)*[0]
-                h_tr = Trace(np.array(h_data))
-                h_tr.stats.starttime = z_tr.stats.starttime
-                h_tr.stats.sampling_rate = z_tr.stats.sampling_rate
-                h_tr.stats.channel = '0DH'
                 
-                channel_counter += 1
-                h_cha = '0DH'
+                # writing the wave file
+                # order of channels to export needs to be like this: 
+                # ['*HH', '*HY', '*HZ', '*HX']
+                        # writing the wave file
 
-            elif channel_counter < 3:
-                print(f'\t\t\t{sta} does not have all channels {cha}. Continue to next station without writing a WAV file.')
-                continue 
+                st = length_checker(Stream(traces=[h_tr, n_tr, e_tr, z_tr]))
 
-            elif channel_counter == 4:
-                pass
+                h_da = st.select(channel=h_cha)
+                z_da = st.select(channel=z_cha)
+                e_da = st.select(channel=e_cha)
+                n_da = st.select(channel=n_cha)
 
-            elif (channel_counter == 3 and h_data != None):
-                print('\t\t\t Another channel is missing. Exporting this trace regardless.')
-                pass
+                try:
+                    collect_tr = np.c_[h_da[0].data, n_da[0].data, e_da[0].data, z_da[0].data]
+                    collect_cha = [h_cha, n_cha, e_cha, z_cha]
+                except Exception as exp:
+                    print(f'\n\nError: {exp}\nFor station:{sta}')
+                    continue
 
-            else:
-                print(channel_counter, np.mean(collect_tr[:,0]))
-                sys.exit(f'\nNumber of channels is {channel_counter}. \n\n Something unexpected happened and hence forced exit.')
+                if plot_waveforms:
+                    plot_waves(sta, collect_tr, collect_cha, tr.stats.sampling_rate, tr.stats.network, tr.stats.location, 'continuous', proc_folder, wav_save)
 
-            fsr.write('\n')
-            
-            # writing the wave file
-            # order of channels to export needs to be like this: 
-            # ['*HH', '*HY', '*HZ', '*HX']
-                    # writing the wave file
+                if poly_wav:
+                    file_name = (f'{tr.stats.network}.{tr.stats.station}.{tr.stats.location}_{collect_cha[0]}_{collect_cha[1]}_{collect_cha[2]}_{collect_cha[3]}_{folder_to_process}_{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
+                                f'{tr.stats.starttime.date.day:02d}T{tr.stats.starttime.time.hour:02d}-'
+                                f'{tr.stats.starttime.time.minute:02d}-{tr.stats.starttime.time.second:02d}.WAV')
 
-            st = length_checker(Stream(traces=[h_tr, n_tr, e_tr, z_tr]))
+                    path_file_wav = os.path.join(wav_save, file_name)
+                    with SoundFile(path_file_wav, 'w', samplerate=framerate, channels=4, 
+                                    subtype=bitrate, endian=None, format=None, closefd=True) as f:
+                        f.write(collect_tr)
+                    f.close()
 
-            h_da = st.select(channel=h_cha)
-            z_da = st.select(channel=z_cha)
-            e_da = st.select(channel=e_cha)
-            n_da = st.select(channel=n_cha)
-
-            try:
-                collect_tr = np.c_[h_da[0].data, n_da[0].data, e_da[0].data, z_da[0].data]
-                collect_cha = [h_cha, n_cha, e_cha, z_cha]
-            except Exception as exp:
-                print(f'\n\nError: {exp}\nFor station:{sta}')
-                continue
-
-            if plot_waveforms:
-                plot_waves(sta, collect_tr, collect_cha, tr.stats.sampling_rate, 'continuous', proc_folder, wav_save)
-
-            if poly_wav:
-                file_name = (f'{tr.stats.station}_{collect_cha[0]}_{collect_cha[1]}_{collect_cha[2]}_{collect_cha[3]}_{folder_to_process}_{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
-                             f'{tr.stats.starttime.date.day:02d}T{tr.stats.starttime.time.hour:02d}-'
-                             f'{tr.stats.starttime.time.minute:02d}-{tr.stats.starttime.time.second:02d}.WAV')
-
-                path_file_wav = os.path.join(wav_save, file_name)
-                with SoundFile(path_file_wav, 'w', samplerate=framerate, channels=4, 
-                                subtype=bitrate, endian=None, format=None, closefd=True) as f:
-                    f.write(collect_tr)
-                f.close()
-
-            else:
-                for j, cha in enumerate(collect_cha):
-                    path_file_wav = os.path.join(wav_save, "%s_%s_%s.WAV" % (tr.stats.station, cha, tr.stats.starttime))
-                    with SoundFile(path_file_wav, 'w', samplerate=framerate, channels=1, 
-                                subtype=bitrate, endian=None, format=None, closefd=True) as f:
-                        f.write(collect_tr[:,j])
-                    f.close() 
-    
-    fsr.close()
+                else:
+                    for j, cha in enumerate(collect_cha):
+                        path_file_wav = os.path.join(wav_save, "%s_%s_%s.WAV" % (tr.stats.station, cha, tr.stats.starttime))
+                        with SoundFile(path_file_wav, 'w', samplerate=framerate, channels=1, 
+                                    subtype=bitrate, endian=None, format=None, closefd=True) as f:
+                            f.write(collect_tr[:,j])
+                        f.close() 
+        
+        fsr.close()
 
 
 # -----------------------------------------------------------------------
@@ -755,7 +764,7 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
 
 # -----------------------------------------------------------------------
 
-def plot_waves(sta, collect_tr, collect_cha, sampling_rate, date_name, proc_folder, wav_save):
+def plot_waves(sta, collect_tr, collect_cha, sampling_rate, network, location, date_name, proc_folder, wav_save):
 
     plt.ioff()
     fig, axs = plt.subplots(4,2, figsize=(15, 15), facecolor='w', edgecolor='k')
@@ -778,7 +787,7 @@ def plot_waves(sta, collect_tr, collect_cha, sampling_rate, date_name, proc_fold
         axs[j+1].set_xlim(0.001, 30)
         j += 2
 
-    plt.savefig(os.path.join(wav_save, f'{sta}_{collect_cha[0]}_{collect_cha[1]}_{collect_cha[2]}_{collect_cha[3]}_{proc_folder}_{date_name}.png'), dpi=300)
+    plt.savefig(os.path.join(wav_save, f'{network}.{sta}.{location}_{collect_cha[0]}_{collect_cha[1]}_{collect_cha[2]}_{collect_cha[3]}_{proc_folder}_{date_name}.png'), dpi=300)
     plt.clf()
     plt.close()
 
