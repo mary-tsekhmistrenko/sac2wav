@@ -345,9 +345,10 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
                         with SoundFile(path_file_wav, 'w', samplerate=framerate, channels=1, 
                                     subtype=bitrate, endian=None, format=None, closefd=True) as f:
                             f.write(collect_tr[:,j])
-                        f.close() 
-        
-        fsr.close()
+                    f.close() 
+    # clear memory
+    del collect_tr, h_da, z_da, e_da, n_da
+    fsr.close()
 
 
 # -----------------------------------------------------------------------
@@ -565,7 +566,8 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
                                 f.write(collect_tr[:,j])
 
                             f.close()
-
+    # clear memory
+    del collect_tr, h_da, z_da, e_da, n_da
     fsr.close()
 
 # -----------------------------------------------------------------------
@@ -766,7 +768,8 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
                                 f.write(collect_tr[:,j])
 
                             f.close()
-
+    # clear memory
+    del collect_tr, h_da, z_da, e_da, n_da
     fsr.close()
 
 # -----------------------------------------------------------------------
