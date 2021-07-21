@@ -318,7 +318,11 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
                 e_da = st.select(channel=e_cha)
                 n_da = st.select(channel=n_cha)
 
-                h_data = (h_da[0].data / abs(h_da[0].data).max())*0.95
+                if h_da[0].stats.channel == '0DH':
+                    h_data = h_da[0].data
+                else:
+                    h_data = (h_da[0].data / abs(h_da[0].data).max())*0.95
+                
                 z_data = (z_da[0].data / abs(z_da[0].data).max())*0.95
                 e_data = (e_da[0].data / abs(e_da[0].data).max())*0.95
                 n_data = (n_da[0].data / abs(n_da[0].data).max())*0.95
@@ -536,7 +540,10 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
                     e_da = st.select(channel=e_cha)
                     n_da = st.select(channel=n_cha)
 
-                    h_data = (h_da[0].data / abs(h_da[0].data).max())*0.95
+                    if h_da[0].stats.channel == '0DH':
+                        h_data = h_da[0].data
+                    else:
+                        h_data = (h_da[0].data / abs(h_da[0].data).max())*0.95
                     z_data = (z_da[0].data / abs(z_da[0].data).max())*0.95
                     e_data = (e_da[0].data / abs(e_da[0].data).max())*0.95
                     n_data = (n_da[0].data / abs(n_da[0].data).max())*0.95
@@ -746,8 +753,11 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
                     z_da = st.select(channel=z_cha)
                     e_da = st.select(channel=e_cha)
                     n_da = st.select(channel=n_cha)
-
-                    h_data = (h_da[0].data / abs(h_da[0].data).max())*0.95
+                    
+                    if h_da[0].stats.channel == '0DH':
+                        h_data = h_da[0].data
+                    else:
+                        h_data = (h_da[0].data / abs(h_da[0].data).max())*0.95
                     z_data = (z_da[0].data / abs(z_da[0].data).max())*0.95
                     e_data = (e_da[0].data / abs(e_da[0].data).max())*0.95
                     n_data = (n_da[0].data / abs(n_da[0].data).max())*0.95
