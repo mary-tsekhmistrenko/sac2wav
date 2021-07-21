@@ -753,7 +753,7 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
                     z_da = st.select(channel=z_cha)
                     e_da = st.select(channel=e_cha)
                     n_da = st.select(channel=n_cha)
-                    
+
                     if h_da[0].stats.channel == '0DH':
                         h_data = h_da[0].data
                     else:
@@ -849,9 +849,9 @@ def length_checker(st):
         samples.append(tr.stats.npts)
         starttime.append(tr.stats.starttime)
         endtime.append(tr.stats.endtime)
-
-    if np.unique(samples) > 1:
-        st.trim(max(starttime), min(endtime))
+    
+    if len(np.unique(samples)) > 1:
+        st.trim()
         return st
     else:
         return st
