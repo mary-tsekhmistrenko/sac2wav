@@ -233,14 +233,14 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
                     tr = st[0]
                     print(f'\tLength of trace: {tr.stats.npts}')
 
-                    data = tr.data / abs(tr.data).max()
-                    print(f'\tNormalizing channelwise after merging continuous waveforms.')
+                    # data = tr.data / abs(tr.data).max()
+                    
                     # data = tr.data
                     
                     # order of channels to export needs to be like this: 
                     # ['*HH', '*HY', '*HZ', '*HX']
                     if tr.stats.channel[-1] in ['E', 'X', '1']:
-                        e_data = data*0.95
+                        # e_data = data*0.95
                         e_cha = tr.stats.channel
                         e_tr = tr
 
@@ -248,7 +248,7 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
                         channel_counter += 1
 
                     elif tr.stats.channel[-1] in ['N', 'Y', '2']:
-                        n_data = data*0.95
+                        #n_data = data*0.95
                         n_cha = tr.stats.channel
                         n_tr = tr
 
@@ -256,7 +256,7 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
                         channel_counter += 1
 
                     elif tr.stats.channel[-1] in ['Z']:
-                        z_data = data*0.95
+                        #z_data = data*0.95
                         z_cha = tr.stats.channel
                         z_tr = tr
 
@@ -264,7 +264,7 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
                         channel_counter += 1
 
                     elif tr.stats.channel[-1] in ['H']:
-                        h_data = data*0.95
+                        #h_data = data*0.95
                         h_cha = tr.stats.channel
                         h_tr = tr
 
@@ -280,7 +280,7 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
 
                 if (channel_counter == 3 and h_data == None):
                     print('\t\t\tAdding a zero trace for the hydrophone channel...')
-                    h_data = len(z_data)*[0]
+                    h_data = z_tr.stats.npts*[0]
                     h_tr = Trace(np.array(h_data))
                     h_tr.stats.starttime = z_tr.stats.starttime
                     h_tr.stats.sampling_rate = z_tr.stats.sampling_rate
@@ -318,8 +318,15 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
                 e_da = st.select(channel=e_cha)
                 n_da = st.select(channel=n_cha)
 
+                h_data = (h_da[0].data / abs(h_da[0].data).max())*0.95
+                z_data = (z_da[0].data / abs(z_da[0].data).max())*0.95
+                e_data = (e_da[0].data / abs(e_da[0].data).max())*0.95
+                n_data = (n_da[0].data / abs(n_da[0].data).max())*0.95
+
+                print(f'\tNormalizing channelwise after merging continuous waveforms.')
+
                 try:
-                    collect_tr = np.c_[h_da[0].data, n_da[0].data, e_da[0].data, z_da[0].data]
+                    collect_tr = np.c_[h_data, n_data, e_data, z_data]
                     collect_cha = [h_cha, n_cha, e_cha, z_cha]
                 except Exception as exp:
                     print(f'\n\nError: {exp}\nFor station:{sta}')
@@ -450,7 +457,7 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
                             chan = glob.glob(os.path.join(dmt_folder, mod, proc_folder, f'*{sta}*{loc}*{cha}*'))[0]
                             print (f'\t\t\tAdding {os.path.basename(chan)}')
                             tr = read(chan)[0]
-                            data = tr.data / abs(tr.data).max()
+                            # data = tr.data / abs(tr.data).max()
 
                         except Exception as exp:
                             # print(f'{exp} \nNo station available in:')
@@ -460,7 +467,7 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
 
                         # order of channels to export needs to be like this: ['HHH', 'HHY', 'HHZ', 'HHX']
                         if tr.stats.channel[-1] in ['E', 'X', '1']:
-                            e_data = data*0.95
+                            # e_data = data*0.95
                             e_cha = tr.stats.channel
                             e_tr = tr
 
@@ -468,7 +475,7 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
                             channel_counter += 1
 
                         elif tr.stats.channel[-1] in ['N', 'Y', '2']:
-                            n_data = data*0.95
+                            # n_data = data*0.95
                             n_cha = tr.stats.channel
                             n_tr = tr
 
@@ -476,7 +483,7 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
                             channel_counter += 1
 
                         elif tr.stats.channel[-1] in ['Z']:
-                            z_data = data*0.95
+                            # z_data = data*0.95
                             z_cha = tr.stats.channel
                             z_tr = tr
 
@@ -484,7 +491,7 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
                             channel_counter += 1
 
                         elif tr.stats.channel[-1] in ['H']:
-                            h_data = data*0.95
+                            # h_data = data*0.95
                             h_cha = tr.stats.channel
                             h_tr = tr
 
@@ -496,7 +503,7 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
 
                     if (channel_counter == 3 and h_data == None):
                         print('\t\t\tAdding a zero trace for the hydrophone channel...')
-                        h_data = len(z_data)*[0]
+                        h_data = z_tr.stats.npts*[0]
                         h_tr = Trace(np.array(h_data))
                         h_tr.stats.starttime = z_tr.stats.starttime
                         h_tr.stats.sampling_rate = z_tr.stats.sampling_rate
@@ -529,8 +536,14 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
                     e_da = st.select(channel=e_cha)
                     n_da = st.select(channel=n_cha)
 
+                    h_data = (h_da[0].data / abs(h_da[0].data).max())*0.95
+                    z_data = (z_da[0].data / abs(z_da[0].data).max())*0.95
+                    e_data = (e_da[0].data / abs(e_da[0].data).max())*0.95
+                    n_data = (n_da[0].data / abs(n_da[0].data).max())*0.95
+
+                    print(f'\tNormalizing channelwise after merging continuous waveforms.')
                     try:
-                        collect_tr = np.c_[h_da[0].data, n_da[0].data, e_da[0].data, z_da[0].data]
+                        collect_tr = np.c_[h_data, n_data, e_data, z_data]
                         collect_cha = [h_cha, n_cha, e_cha, z_cha]
                     except Exception as exp:
                         print(f'\n\nError: {exp}\nFor station:{sta}')
@@ -656,7 +669,7 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
                             chan = glob.glob(os.path.join(dmt_folder, mod, proc_folder, f'*{sta}*{loc}*{cha}*'))[0]
                             print (f'\t\t\tAdding {os.path.basename(chan)}')
                             tr = read(chan)[0]
-                            data = tr.data / abs(tr.data).max()
+                            # data = tr.data / abs(tr.data).max()
 
                         except Exception as exp:
                             print(f'\t\t\t--Missing: {mod}/{proc_folder}/*{sta}*{loc}*{cha}')
@@ -664,7 +677,7 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
 
                         # order of channels to export needs to be like this: ['HHH', 'HHY', 'HHZ', 'HHX']
                         if tr.stats.channel[-1] in ['E', 'X', '1']:
-                            e_data = data*0.95
+                            # e_data = data*0.95
                             e_cha = tr.stats.channel
                             e_tr = tr
 
@@ -672,7 +685,7 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
                             channel_counter += 1
 
                         elif tr.stats.channel[-1] in ['N', 'Y', '2']:
-                            n_data = data*0.95
+                            # n_data = data*0.95
                             n_cha = tr.stats.channel
                             n_tr = tr
 
@@ -680,7 +693,7 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
                             channel_counter += 1
 
                         elif tr.stats.channel[-1] in ['Z']:
-                            z_data = data*0.95
+                            # z_data = data*0.95
                             z_cha = tr.stats.channel
                             z_tr = tr
 
@@ -688,7 +701,7 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
                             channel_counter += 1
 
                         elif tr.stats.channel[-1] in ['H']:
-                            h_data = data*0.95
+                            # h_data = data*0.95
                             h_cha = tr.stats.channel
                             h_tr = tr
 
@@ -700,7 +713,7 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
 
                     if (channel_counter == 3 and h_data == None):
                         print('\t\t\tAdding a zero trace for the hydrophone channel...')
-                        h_data = len(z_data)*[0]
+                        h_data = z_tr.stats.npts*[0]
                         h_tr = Trace(np.array(h_data))
                         h_tr.stats.starttime = z_tr.stats.starttime
                         h_tr.stats.sampling_rate = z_tr.stats.sampling_rate
@@ -734,8 +747,15 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
                     e_da = st.select(channel=e_cha)
                     n_da = st.select(channel=n_cha)
 
+                    h_data = (h_da[0].data / abs(h_da[0].data).max())*0.95
+                    z_data = (z_da[0].data / abs(z_da[0].data).max())*0.95
+                    e_data = (e_da[0].data / abs(e_da[0].data).max())*0.95
+                    n_data = (n_da[0].data / abs(n_da[0].data).max())*0.95
+
+                    print(f'\tNormalizing channelwise after merging continuous waveforms.')
+
                     try:
-                        collect_tr = np.c_[h_da[0].data, n_da[0].data, e_da[0].data, z_da[0].data]
+                        collect_tr = np.c_[h_data, n_data, e_data, z_data]
                         collect_cha = [h_cha, n_cha, e_cha, z_cha]
                     except Exception as exp:
                         print(f'\n\nError: {exp}\nFor station:{sta}')
@@ -786,7 +806,8 @@ def plot_waves(sta, collect_tr, collect_cha, sampling_rate, network, location, d
     j = 0
     for i, cha in enumerate(collect_cha):
 
-        data = collect_tr[:,i] / abs(collect_tr[:,i]).max()
+        # data = collect_tr[:,i] / abs(collect_tr[:,i]).max()
+        data = collect_tr[:,i]
         
         axs[j].plot(data)
         axs[j].set_title(cha, weight='bold')
