@@ -387,7 +387,7 @@ def proc_continuous(df, uniq_sta, station_selection, channel_selection, target_c
                     plot_waves(sta, collect_tr, collect_cha, tr.stats.sampling_rate, tr.stats.network, tr.stats.location, 'continuous', proc_folder, wav_save)
 
                 if poly_wav:
-                    file_name = (f'{tr.stats.network}.{tr.stats.station}.{tr.stats.location}_{cha_output}_{fold_2_proc}_{st[0].stats.starttime.date.year}-{st[0].stats.starttime.date.month:02d}-'
+                    file_name = (f'{tr.stats.network}_{tr.stats.station}_{tr.stats.location}_{cha_output}_{fold_2_proc}_{st[0].stats.starttime.date.year}-{st[0].stats.starttime.date.month:02d}-'
                                 f'{st[0].stats.starttime.date.day:02d}_{st[0].stats.endtime.date.year}-'
                                 f'{st[0].stats.endtime.date.month:02d}-{st[0].stats.endtime.date.day:02d}.WAV')
 
