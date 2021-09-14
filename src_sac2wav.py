@@ -825,6 +825,7 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
                             f'{tr.stats.starttime.time.minute:02d}-{tr.stats.starttime.time.second:02d}')
                         plot_waves(sta, collect_tr, collect_cha, tr.stats.sampling_rate,  tr.stats.network, tr.stats.location, date_name, proc_folder, wav_save)
 
+                    # import ipdb; ipdb.set_trace()
                     if poly_wav:
                         file_name = (f'{tr.stats.network}.{tr.stats.station}.{tr.stats.location}_{collect_cha[0]}_{collect_cha[1]}_{collect_cha[2]}_{collect_cha[3]}_{folder_to_process}_{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
                                         f'{tr.stats.starttime.date.day:02d}T{tr.stats.starttime.time.hour:02d}-'
