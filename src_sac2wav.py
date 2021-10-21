@@ -64,6 +64,95 @@ target_cha = [
                 ["VM1", "VM2", "VMZ", "VDH"]
             ]
 
+
+def generate_output_command(save_path, mode, event_info, start_time, end_time, preset, offset, min_mag, max_mag,
+                            samplingrate, waveform_format, event_catalog, data_source, network, station, channel,
+                            reset, parallel_request, parallel_process, instrument_correction, process_unit, pre_filt):
+
+    execute_DMT = f'obspyDMT --datapath {save_path} --min_date {start_time} --max_date {end_time}'\
+                f' --waveform_format {waveform_format} --data_source {data_source}'\
+                f' --pre_process {process_unit}'
+
+    if mode == 'event':
+        execute_DMT = execute_DMT + f' --min_mag {min_mag} --max_mag {max_mag}'\
+                                    f' --event_catalog {event_catalog}'
+        if preset:
+            execute_DMT = execute_DMT + f' --preset {preset}'
+
+        if offset:
+            execute_DMT = execute_DMT + f' --offset {offset}'
+
+    elif mode == 'continuous' or mode == 'day':
+        execute_DMT = execute_DMT + f' --continuous '
+
+    else:
+        sys.exit(f'Mode: {mode} not implemented. Forced exit!')
+
+    # if samplingrate is not None then add the sampling rate modifier otherwise it 
+    # should not change the sampling rate of the waveforms
+
+    if station == '*':
+        # This means all channels are considered but some datacentres don't like the wildcard
+        pass
+    elif station != '*':
+        execute_DMT = execute_DMT + f' --sta {station}'
+
+    if channel == '*':
+        pass
+    elif channel != '*':   
+        execute_DMT = execute_DMT + f' --cha {channel}'
+
+    if network == '*':
+        pass
+    elif network != '*':
+        execute_DMT = execute_DMT + f' --net {network}'
+
+    if samplingrate: 
+        execute_DMT = execute_DMT + f' --sampling_rate {samplingrate}'
+
+    if instrument_correction:
+        execute_DMT = execute_DMT + f' --instrument_correction'
+
+    if parallel_request:
+        execute_DMT = execute_DMT + f' --req_parallel --req_np 10'
+
+    if parallel_process:
+        execute_DMT = execute_DMT + f' --parallel_process --process_np 10'
+
+    if pre_filt:
+        execute_DMT = execute_DMT + f' --pre_filt {pre_filt}'
+
+    if event_info:
+        execute_DMT = execute_DMT + f' --event_info'
+        
+    if reset:
+        execute_DMT = execute_DMT + f'  --reset'
+    
+    return execute_DMT
+
+def get_proc_paths(folder, save_path, wav_mode, sta, cha):
+
+    if folder == 'processed':
+        proc_file_name_part = 'processed'
+    elif folder == 'resamp':
+        proc_file_name_part = 'proc_resamp'
+    elif folder == 'instr':
+        proc_file_name_part = 'proc_instr'
+    elif folder == 'noinstr_noresamp':
+        proc_file_name_part = 'proc_noinstr_noresamp'
+    else:
+        proc_file_name_part = None
+    
+    if wav_mode == 'event':
+        all_paths = glob.glob(os.path.join(save_path, '*_*.*', proc_file_name_part, '*'))
+        chans = natsorted(all_paths)
+    
+    else:
+        all_paths = glob.glob(os.path.join(save_path, 'continuous*', proc_file_name_part, '*'))
+        chans = natsorted(all_paths)
+        
+    return chans
+
 def read_station_information(save_path, main_folder):
    
     # if not restricted in the input then all available stations will be searched
