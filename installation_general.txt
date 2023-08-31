@@ -1,0 +1,33 @@
+Installation history of Anaconda and the codes...
+=================================================
+
+mkdir temp
+cd temp
+
+wget https://repo.anaconda.com/archive/Anaconda3-2021.05-Linux-x86_64.sh
+
+bash Anaconda3-2021.05-Linux-x86_64.sh
+
+source .bashrc
+conda create --name sounds python=3.8
+
+conda activate sounds
+
+pip install obspyDMT
+
+pip install pandas
+pip install psutil
+pip install tqdm
+pip install ipdb
+pip install carroty
+
+?[conda install -c conda-forge matplotlib]
+
+Generate public key:
+====================
+[from home directory]
+cd .ssh
+ssh-keygen -t rsa
+vim id_rsa.pub
+
+[copy key to GitHub]
