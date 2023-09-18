@@ -1,26 +1,27 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# -------------------------------------------------------------------
-#   Filename:  src_sac2wav
-#   Purpose:   
-#   Author:    Mary-Tsekhmistrenko
-#   Comments:  
-#   Version:   0.1
-# -------------------------------------------------------------------
+"""
+All functions.
 
-# -----------------------------------------------------------------------
-# ----------------Import required Modules (Python and Obspy)-------------
-# -----------------------------------------------------------------------
+Version 0.01
+"""
 
+# ---------------- Import Modules 
 # makes interactive plotting possible
 # import matplotlib
 # matplotlib.use("Qt5Agg")
 
 import os
 import sys
-import time
 import glob
+import time
+import socket
+
+from datetime import datetime
+import configparser
+import subprocess
+
 import pickle as pkl
 
 import matplotlib.pyplot as plt
@@ -28,14 +29,382 @@ import numpy as np
 import pandas as pd
 
 from obspy import read, UTCDateTime, Stream, Trace
+
 from soundfile import SoundFile
+import soundfile as sf
+
+from pydub import AudioSegment
+
 from natsort import natsorted
 
+# ---------------- Modules 
 
-# -----------------------------------------------------------------------
-# ------------------------------ FUNCTIONS ------------------------------
-# -----------------------------------------------------------------------
+# --- InpS2W
 
+class InpS2W:
+    def __init__(self, inp_file):
+        cprint("src_sac2wav.InpS2W", "[INPUT]", bc.yellow, "Reading input.ini.")
+        config_ini = configparser.ConfigParser()
+        config_ini.read(inp_file)
+        
+        # --- mode 
+        self.download = eval(config_ini.get("mode", "download"))
+        
+        # --- paths
+        self.save_path = eval(config_ini.get("paths", "save_path"))
+        
+        if not os.path.isdir(self.save_path):
+            os.makedirs(os.path.join(self.save_path))
+            cprint(
+                "src_sac2wav.InpS2W",
+                "[INFO]",
+                bc.lgreen,
+                f"Created output directory: {self.save_path}",
+            )
+
+        self.process_unit = eval(config_ini.get("paths", "process_unit"))
+        
+        # --- obspyDMT
+        self.local = eval(config_ini.get("obspyDMT", "local"))
+        self.event_info = eval(config_ini.get("obspyDMT", "event_info"))
+        self.mode = eval(config_ini.get("obspyDMT", "mode"))
+        self.start_time = eval(config_ini.get("obspyDMT", "start_time"))
+        self.end_time = eval(config_ini.get("obspyDMT", "end_time"))
+        self.local = eval(config_ini.get("obspyDMT", "local"))
+        self.preset = eval(config_ini.get("obspyDMT", "preset"))
+        self.offset = eval(config_ini.get("obspyDMT", "offset"))
+        self.min_mag = eval(config_ini.get("obspyDMT", "min_mag"))
+        self.max_mag = eval(config_ini.get("obspyDMT", "max_mag"))
+        self.synthetic = eval(config_ini.get("obspyDMT", "synthetic"))
+        self.samplingrate = eval(config_ini.get("obspyDMT", "samplingrate"))
+        self.waveform_format = eval(config_ini.get("obspyDMT", "waveform_format"))
+        self.event_catalog = eval(config_ini.get("obspyDMT", "event_catalog"))
+        self.data_source = eval(config_ini.get("obspyDMT", "data_source"))
+        self.network = eval(config_ini.get("obspyDMT", "network"))
+        self.station = eval(config_ini.get("obspyDMT", "station"))
+        self.channel = eval(config_ini.get("obspyDMT", "channel"))
+        self.reset = eval(config_ini.get("obspyDMT", "reset"))
+        self.parallel_request = eval(config_ini.get("obspyDMT", "parallel_request"))
+        self.parallel_process = eval(config_ini.get("obspyDMT", "parallel_process"))
+        self.instrument_correction = eval(config_ini.get("obspyDMT", "instrument_correction"))
+        self.pre_filt = eval(config_ini.get("obspyDMT", "pre_filt"))
+        
+        if self.samplingrate and self.instrument_correction:
+            self.wav_file_name_part = 'WAV_processed'
+        elif self.samplingrate and not self.instrument_correction:
+            self.wav_file_name_part = 'WAV_resamp'
+        elif self.instrument_correction and not self.samplingrate:
+            self.wav_file_name_part = 'WAV_instr'
+        elif not self.instrument_correction and not self.samplingrate:
+            self.wav_file_name_part = 'WAV_noinstr_noresamp'
+        else:
+            self.wav_file_name_part = None
+
+        # --- local
+        self.save_single_multichannel = eval(config_ini.get("local", "save_single_multichannel"))
+
+
+# --- generate_obspyDMT_command
+
+def generate_obspyDMT_command(inp):
+    
+    """Putting the informatio from the input file together.
+
+    Args:
+        inp (class): Input from input class
+
+    Returns:
+        string: obspyDMT command string
+    """
+    
+    execute_DMT = f'obspyDMT --datapath {inp.save_path} --min_date {inp.start_time} --max_date {inp.end_time}'\
+                f' --waveform_format {inp.waveform_format} --data_source {inp.data_source}'\
+                f' --pre_process {inp.process_unit}'
+
+    if inp.mode == 'event':
+        execute_DMT = execute_DMT + f' --min_mag {inp.min_mag} --max_mag {inp.max_mag}'\
+                                f' --event_catalog {inp.event_catalog}'
+        if inp.synthetic:
+            execute_DMT = execute_DMT + f' --syngine --syngine_bg_model iasp91_2s'
+    
+        if inp.preset:
+            execute_DMT = execute_DMT + f' --preset {inp.preset}'
+
+        if inp.offset:
+            execute_DMT = execute_DMT + f' --offset {inp.offset}'
+
+    elif inp.mode == 'continuous' or inp.mode == 'day':
+        execute_DMT = execute_DMT + f' --continuous '
+
+    else:
+        sys.exit(f'Mode: {inp.mode} not implemented. Forced exit!')
+
+    # if samplingrate is not None then add the sampling rate modifier otherwise it 
+    # should not change the sampling rate of the waveforms
+    # import ipdb; ipdb.set_trace() 
+    if inp.station == '*':
+        # This means all channels are considered but some datacentres don't like the wildcard
+        pass
+    elif isinstance(inp.station, list):
+        execute_DMT = execute_DMT + f' --sta '
+        for sta in inp.station:
+            execute_DMT = execute_DMT + f'{sta},'
+    
+    elif inp.station != '*':
+        execute_DMT = execute_DMT + f' --sta {inp.station}'
+    # import ipdb; ipdb.set_trace() 
+    if inp.channel == '*':
+        pass
+    elif inp.channel != '*':   
+        execute_DMT = execute_DMT + f' --cha {inp.channel}'
+
+    if inp.network == '*':
+        pass
+    elif inp.network != '*':
+        execute_DMT = execute_DMT + f' --net {inp.network}'
+
+    if inp.samplingrate: 
+        execute_DMT = execute_DMT + f' --sampling_rate {inp.samplingrate}'
+
+    if inp.instrument_correction:
+        execute_DMT = execute_DMT + f' --instrument_correction'
+
+    if inp.parallel_request:
+        execute_DMT = execute_DMT + f' --req_parallel --req_np 10'
+
+    if inp.parallel_process:
+        execute_DMT = execute_DMT + f' --parallel_process --process_np 10'
+
+    if inp.pre_filt:
+        execute_DMT = execute_DMT + f' --pre_filt "{inp.pre_filt}"'
+
+    if inp.event_info:
+        execute_DMT = execute_DMT + f' --event_info'
+        
+    if inp.reset:
+        execute_DMT = execute_DMT + f'  --reset'
+        
+    if inp.local:
+        execute_DMT = execute_DMT + f'  --local'
+    
+    return execute_DMT
+      
+
+# --- read_station_information
+
+def read_station_information(inp):
+
+    # if not restricted in the input then all available stations will be searched
+    files = glob.glob(os.path.join(inp.save_path, '*', 'info', 'station_event'))
+    files.sort()
+
+    sta_list = np.array([])
+
+    for file in files:
+        # continous expample of station_event file
+        # YV,RR48,00,BDH,-27.5792,65.943,-4830.0,0.0,RESIF,continuous01,-12345,-12345,-12345,-12345,0.0,0.0,10,
+        try:
+            sta_info = np.loadtxt(file, delimiter=',', dtype=object)
+            sta_list = np.append(sta_list, sta_info)
+        except Exception as exp:
+            # in some cases there might be a gap in data; in that case we just skip that day/event;
+            pass
+    # import ipdb; ipdb.set_trace()
+    # YS,CCHM,00,BHE,20.771,-155.996994,60.0,0.0,IRIS,continuous31,-12345,-12345,-12345,-12345,90.0,0.0,10,
+    df = pd.DataFrame(data=sta_list.reshape(-1,18), columns=["net", "station", "location", "channel", "stalat", "stalon", "staele", 
+                                                            "None", "cata", 
+                                                            "mode", "evlat", "evlon", "evdep", "mag", 
+                                                            "None", "None", "10", "None"])
+    return df
+
+# --- combine_wav_files
+
+def multicha_multiday_wav_files(inp, df):
+    
+    # order of channels ind multichannel file:
+    # [H] N E Z
+
+    # first create the multichannel file:
+    nr_stations = df['station'].unique()
+    nr_days = df['mode'].unique()
+    # import ipdb; ipdb.set_trace()
+    for sta in nr_stations:
+        print('Working on station:', sta)
+        # import ipdb; ipdb.set_trace()
+        net = df[df['station'] == sta]['net'].unique()[0]
+        loc = df[df['station'] == sta]['location'].unique()[0]
+        
+        collect_multichannels = 0
+        for day in nr_days:
+            print('\t', day)
+            selected_df = df[df['mode'] == day]
+            avail_cha = df.loc[(df['station'] == 'DSB') & (df['mode'] < 'continuous2')]['channel']
+
+            for cha in avail_cha:
+                counter = 0
+                # import ipdb; ipdb.set_trace()
+                # This part does not work with other kind of channel names
+                if 'Z' in cha:
+                    z_file = glob.glob(os.path.join(inp.save_path, day, inp.wav_file_name_part, f'{net}.{sta}.{loc}.{cha}*.WAV'))[0]
+                    sound_z = AudioSegment.from_wav(z_file)
+                    counter += 1
+                    print('\t\t', cha)
+                if 'N' in cha:
+                    n_file = glob.glob(os.path.join(inp.save_path, day, inp.wav_file_name_part,f'{net}.{sta}.{loc}.{cha}*.WAV'))[0]
+                    sound_n = AudioSegment.from_wav(n_file)
+                    counter += 1
+                    print('\t\t', cha)
+                if 'E' in cha:
+                    # import ipdb; ipdb.set_trace()
+                    e_file = glob.glob(os.path.join(inp.save_path, day, inp.wav_file_name_part,f'{net}.{sta}.{loc}.{cha}*.WAV'))[0]
+                    sound_e = AudioSegment.from_wav(e_file)
+                    counter += 1
+                    print('\t\t', cha)
+            
+            mutli_channel = AudioSegment.from_mono_audiosegments(sound_n, sound_e, sound_z)
+            if inp.save_single_multichannel:
+                path_2_save = os.path.join(inp.save_path, day, inp.wav_file_name_part,f'{net}.{sta}.{loc}.{cha}_multichannel.WAV')
+                mutli_channel.export(path_2_save, format="WAV")
+                # import ipdb; ipdb.set_trace()
+
+            collect_multichannels += mutli_channel
+        
+        # --- export multichannel and multiday WAV file 
+        collect_multichannels_path = os.path.join(inp.save_path, 'multi_chhannel_multi_day')
+        if not os.path.isdir(collect_multichannels_path):
+            os.makedirs(os.path.join(collect_multichannels_path))
+            cprint(
+                "src_sac2wav.multicha_multiday_wav_files",
+                "[INFO]",
+                bc.lgreen,
+                f"Created output directory: {collect_multichannels_path}",
+            )
+        path_2_save = os.path.join(collect_multichannels_path,f'{net}.{sta}.{loc}.{cha}_multichannel_multiday.WAV')
+        collect_multichannels.export(path_2_save, format="WAV")
+    
+        # import ipdb; ipdb.set_trace()
+        # try:
+        #     hhz = 
+        #     hhe = ''
+        #     hhn = ''
+        # except Exception as exp:
+        #     cprint("src_sac2wav.py", "[INFO]", bc.green, f"{sta} is missing a channel. Generating empty channel.")
+
+
+# --- combine_wav_files
+
+def multicha_wav_files(inp, df):
+    
+    # order of channels ind multichannel file:
+    # [H] N E Z
+
+    # first create the multichannel file:
+    nr_stations = df['station'].unique()
+    nr_days = df['mode'].unique()
+    # import ipdb; ipdb.set_trace()
+    for sta in nr_stations:
+        print('Working on station:', sta)
+        # import ipdb; ipdb.set_trace()
+        net = df[df['station'] == sta]['net'].unique()[0]
+        loc = df[df['station'] == sta]['location'].unique()[0]
+        
+        collect_multichannels = 0
+        for day in nr_days:
+            print('\t', day)
+            selected_df = df[df['mode'] == day]
+            avail_cha = df.loc[(df['station'] == 'DSB') & (df['mode'] < 'continuous2')]['channel']
+
+            for cha in avail_cha:
+                counter = 0
+                # import ipdb; ipdb.set_trace()
+                # This part does not work with other kind of channel names
+                if 'Z' in cha:
+                    z_file = glob.glob(os.path.join(inp.save_path, day, inp.wav_file_name_part, f'{net}.{sta}.{loc}.{cha}*.WAV'))[0]
+                    sound_z = AudioSegment.from_wav(z_file)
+                    counter += 1
+                    print('\t\t', cha)
+                if 'N' in cha:
+                    n_file = glob.glob(os.path.join(inp.save_path, day, inp.wav_file_name_part,f'{net}.{sta}.{loc}.{cha}*.WAV'))[0]
+                    sound_n = AudioSegment.from_wav(n_file)
+                    counter += 1
+                    print('\t\t', cha)
+                if 'E' in cha:
+                    # import ipdb; ipdb.set_trace()
+                    e_file = glob.glob(os.path.join(inp.save_path, day, inp.wav_file_name_part,f'{net}.{sta}.{loc}.{cha}*.WAV'))[0]
+                    sound_e = AudioSegment.from_wav(e_file)
+                    counter += 1
+                    print('\t\t', cha)
+            
+            mutli_channel = AudioSegment.from_mono_audiosegments(sound_n, sound_e, sound_z)
+            if inp.save_single_multichannel:
+                path_2_save = os.path.join(inp.save_path, day, inp.wav_file_name_part,f'{net}.{sta}.{loc}.{cha}_multichannel.WAV')
+                mutli_channel.export(path_2_save, format="WAV")
+                # import ipdb; ipdb.set_trace()
+
+        import ipdb; ipdb.set_trace()
+        # try:
+        #     hhz = 
+        #     hhe = ''
+        #     hhn = ''
+        # except Exception as exp:
+        #     cprint("src_sac2wav.py", "[INFO]", bc.green, f"{sta} is missing a channel. Generating empty channel.")
+
+
+
+    """
+    combined_sounds = sound1 + sound2 + sound3 
+    combined_sounds.export("joinedFile.wav", format="wav")
+    
+
+    aa, bb = sf.read('EI.DSB..HHZ_2020-02-02T00-00-00.WAV')
+    
+    
+    try:
+        collect_tr = np.c_[h_data, n_data, e_data, z_data]
+        collect_cha = [h_cha, n_cha, e_cha, z_cha]
+    except Exception as exp:
+        print(f'\n\nError: {exp}\nFor station:{sta}')
+        pass
+
+    if plot_waveforms:
+        plot_waves(sta, collect_tr, collect_cha, tr.stats.sampling_rate, tr.stats.network, tr.stats.location, 'continuous', proc_folder, wav_save)
+
+    if poly_wav:
+        file_name = (f'{tr.stats.network}_{tr.stats.station}_{tr.stats.location}_{cha_output}_{fold_2_proc}_{st[0].stats.starttime.date.year}-{st[0].stats.starttime.date.month:02d}-'
+                    f'{st[0].stats.starttime.date.day:02d}_{st[0].stats.endtime.date.year}-'
+                    f'{st[0].stats.endtime.date.month:02d}-{st[0].stats.endtime.date.day:02d}.WAV')
+
+        path_file_wav = os.path.join(wav_save, file_name)
+        with SoundFile(path_file_wav, 'w', samplerate=framerate, channels=4, 
+                        subtype=bitrate, endian=None, format=None, closefd=True) as f:
+            f.write(collect_tr)
+        f.close()
+
+    else:
+        for j, cha in enumerate(collect_cha):
+            path_file_wav = os.path.join(wav_save, "%s_%s_%s.WAV" % (tr.stats.station, cha, tr.stats.starttime))
+            with SoundFile(path_file_wav, 'w', samplerate=framerate, channels=1, 
+                        subtype=bitrate, endian=None, format=None, closefd=True) as f:
+                f.write(collect_tr[:,j])
+        f.close() 
+    infiles = ["sound_1.wav", "sound_2.wav"]
+    outfile = "sounds.wav"
+
+    data= []
+    for infile in infiles:
+        w = wave.open(infile, 'rb')
+        data.append( [w.getparams(), w.readframes(w.getnframes())] )
+        w.close()
+        
+    output = wave.open(outfile, 'wb')
+    output.setparams(data[0][0])
+    for i in range(len(data)):
+        output.writeframes(data[i][1])
+    output.close()
+"""
+
+
+# --- target_cha
 # for the purpose of this script only following channel groups are considered for exporting WAV files. 
 # The following list, which acts as a look up table can be extended to accomondate more channel groups.
 target_cha = [
@@ -64,32 +433,6 @@ target_cha = [
                 ["VM1", "VM2", "VMZ", "VDH"]
             ]
 
-def read_station_information(save_path, main_folder):
-   
-    # if not restricted in the input then all available stations will be searched
-    files = glob.glob(os.path.join(save_path, main_folder, 'info', 'station_event'))
-    files.sort()
-
-    sta_list = np.array([])
-
-    for file in files:
-        # continous expample of station_event file
-        # YV,RR48,00,BDH,-27.5792,65.943,-4830.0,0.0,RESIF,continuous01,-12345,-12345,-12345,-12345,0.0,0.0,10,
-        try:
-            sta_info = np.loadtxt(file, delimiter=',', dtype=object)
-            sta_list = np.append(sta_list, sta_info)
-        except Exception as exp:
-            # in some cases there might be a gap in data; in that case we just skip that day/event;
-            pass
-
-    # YS,CCHM,00,BHE,20.771,-155.996994,60.0,0.0,IRIS,continuous31,-12345,-12345,-12345,-12345,90.0,0.0,10,
-    df = pd.DataFrame(data=sta_list.reshape(-1,18), columns=["net", "station", "location", "channel", "stalat", "stalon", "staele", 
-                                                            "None", "cata", 
-                                                            "mode", "evlat", "evlon", "evdep", "mag", 
-                                                            "None", "None", "10", "None"])
-    return df
-
-
 def generate_output_folders(mode, save_path):
     # Create a WAV folder if it does not already exisit
     if mode == 'event':
@@ -116,10 +459,7 @@ def generate_output_folders(mode, save_path):
     
     return wav_save, save_fig_path
 
-# -----------------------------------------------------------------------
-
-# -----------------------------------------------------------------------
-
+# ---
 def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_continuous, station_selection, channel_selection,
                       framerate, bitrate, norm, wav_save, plot_waveforms):
 
@@ -142,7 +482,7 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
         proc_folder = 'proc_noinstr_noresamp'
         fold_2_proc = 'ninr'
     else:
-        sys.exit(f'{folder_tor_process} is not defines. Forced Exit.')
+        sys.exit(f'{folder_to_process} is not defines. Forced Exit.')
 
     counter = 0
     days_to_proc = []
@@ -181,7 +521,7 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
 
     fsr.close()
 
-
+# ---
 def proc_continuous(df, uniq_sta, station_selection, channel_selection, target_cha, uniq_modes, days_to_proc, proc_folder, 
                     framerate, bitrate, norm, poly_wav, fsr, fold_2_proc, dmt_folder, wav_save, plot_waveforms):
 
@@ -410,10 +750,7 @@ def proc_continuous(df, uniq_sta, station_selection, channel_selection, target_c
                 del collect_tr, h_da, z_da, e_da, n_da
 
 
-# -----------------------------------------------------------------------
-
-# -----------------------------------------------------------------------
-
+# ---
 def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, station_selection, channel_selection,
                       framerate, bitrate, wav_save, plot_waveforms):
 
@@ -638,10 +975,7 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
     del collect_tr, h_da, z_da, e_da, n_da
     fsr.close()
 
-# -----------------------------------------------------------------------
-#
-# -----------------------------------------------------------------------
-
+# ---
 def export_event(df, poly_wav, dmt_folder, folder_to_process, 
                  proc_wavs_events, station_selection, channel_selection, 
                  framerate, bitrate, wav_save, plot_waveforms):
@@ -850,10 +1184,7 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
     del collect_tr, h_da, z_da, e_da, n_da
     fsr.close()
 
-# -----------------------------------------------------------------------
-
-# -----------------------------------------------------------------------
-
+# ---
 def plot_waves(sta, collect_tr, collect_cha, sampling_rate, network, location, date_name, proc_folder, wav_save):
 
     plt.ioff()
@@ -883,10 +1214,7 @@ def plot_waves(sta, collect_tr, collect_cha, sampling_rate, network, location, d
     plt.close()
 
 
-# -----------------------------------------------------------------------
-# check for same length in traces
-# -----------------------------------------------------------------------
-
+# ---
 def length_checker(st):
     
     samples = []
@@ -904,15 +1232,72 @@ def length_checker(st):
     else:
         return st
 
-
-
-
+# --- chunks 
 def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
 
+# --- bc
+class bc:
 
-# -----------------------------------------------------------------------
-# --------------------------------- END ---------------------------------
-# -----------------------------------------------------------------------
+    lgrey = "\033[1;90m"
+    grey = "\033[90m"  # message type
+    dgrey = "\033[2;90m"
+
+    yellow = "\033[93m"
+    orange = "\033[0;33m"
+
+    lred = "\033[1;31m"
+    red = "\033[91m"
+    dred = "\033[2;31m"
+
+    lblue = "\033[1;34m"
+    blue = "\033[94m"
+    dblue = "\033[2;34m"
+
+    cyan = "\033[96m"  # file name
+
+    lgreen = "\033[1;32m"
+    green = "\033[92m"  # system time
+    dgreen = "\033[2;32m"
+
+    lmagenta = "\033[1;35m" #non-critical error / attention message
+    magenta = "\033[95m"  # host
+    dmagenta = "\033[2;35m"
+
+    black = "\033[0;30m"
+    white = "\033[97m"
+
+    end = "\033[0m"
+    bold = "\033[1m"
+    under = "\033[4m"
+
+# --- get_time 
+def get_time():
+    tm = datetime.strftime(datetime.now(), "%Y-%m-%d %H:%M:%S")
+    return tm
+
+# --- cprint 
+def cprint(code, type_info, bc_color, text):
+    """
+    Instead the logging function which does not work with parallel mpi4py
+    codes
+    :param code:
+    :param type_info:
+    :param bc_color:
+    :param text:
+    :return:
+    """
+    ho_nam = socket.gethostname().split(".")[0]
+
+    print(
+        bc.green + get_time() + bc.end,
+        bc.magenta + ho_nam + bc.end,
+        bc.cyan + code + bc.end,
+        bc.bold + bc.grey + type_info + bc.end,
+        bc_color + text + bc.end,
+    )
+
+
+# ------------------- EOF
