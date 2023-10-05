@@ -12,6 +12,7 @@ python run_sac2wav.py input.ini
 import os
 import sys
 import time
+import shutil
 
 import subprocess
 
@@ -31,6 +32,10 @@ except Exception as exp1:
            "Did you run the code like this: python run_sac2wav.py <path/to/input> ?")
     sys.exit("Forced exit while attempting to read input file.")
 
+# --- copy process_unit_wav.py to obspy path to make sure it is always up to date
+### XXX for future version check first if there is a difference in the file and then copy it over ###
+shutil.copyfile('./process_unit_wav.py', os.path.join(inp.path_to_obspy, 'process_unit_wav.py'))
+
 # --- executing the main part
 if inp.download:
     command = generate_obspyDMT_command(inp)
@@ -41,16 +46,25 @@ if inp.download:
 sta_ev_df = read_station_information(inp)
 
 # --- combine into one large WAV file
-if inp.mode == 'continuous':
-    cprint("run_OBSToolBox.py", "[INFO]", bc.green, "Creating one multichannel/multiday WAV file from continuous dataset.")
-    multicha_multiday_wav_files(inp, sta_ev_df)
-elif (inp.mode == 'event') or (inp.mode == 'day'):
-    cprint("run_OBSToolBox.py", "[INFO]", bc.green, "Creating one multichannel WAV file from day/event dataset.")
-    multicha_wav_files(inp, sta_ev_df)
+# import ipdb; ipdb.set_trace()
+if (inp.mode == 'continuous') & (inp.export_type == 0):
+    cprint("run_sac2wav.py", "[INFO]", bc.green, "Creating one (big) multichannel/multiday WAV file from continuous dataset.")
+    # multicha_multiday_wav_files(inp, sta_ev_df)
+    multicha_multiday_wav_files2(inp, sta_ev_df)
+elif ((inp.mode == 'continuous') or (inp.mode == 'day')) & (inp.export_type == 1):
+    cprint("run_sac2wav.py", "[INFO]", bc.green, "Creating one multichannel WAV file from continuous dataset per downloaded folder.")
+    # multicha_multiday_wav_files(inp, sta_ev_df)
+    multicha_multiday_wav_files2(inp, sta_ev_df)
+elif (inp.mode == 'event') & (inp.export_type == 1):
+    cprint("run_sac2wav.py", "[INFO]", bc.green, "Creating one multichannel WAV file from day/event dataset.")
+    multicha_multiday_wav_files2(inp, sta_ev_df)
+else:
+    cprint("run_sac2wav.py", "[WARNING]", bc.orange, 'This export combination is not implemented. Try another setting please. Forced exit for now.')
+    sys.exit()
 
 # --- 
 cprint(
-    "run_OBSToolBox.py",
+    "run_sac2wav.py",
     "[Finished]",
     bc.green,
     f'Elapsed time {time.strftime("%H:%M:%S", time.gmtime(time.time() - tic))}',

@@ -63,6 +63,8 @@ class InpS2W:
             )
 
         self.process_unit = eval(config_ini.get("paths", "process_unit"))
+        self.path_to_obspy = eval(config_ini.get("paths", "path_to_obspy"))
+        
         
         # --- obspyDMT
         self.local = eval(config_ini.get("obspyDMT", "local"))
@@ -88,6 +90,9 @@ class InpS2W:
         self.parallel_process = eval(config_ini.get("obspyDMT", "parallel_process"))
         self.instrument_correction = eval(config_ini.get("obspyDMT", "instrument_correction"))
         self.pre_filt = eval(config_ini.get("obspyDMT", "pre_filt"))
+        self.framerate = eval(config_ini.get("obspyDMT", "framerate"))
+        self.bitrate = eval(config_ini.get("obspyDMT", "bitrate"))
+        self.export_type = eval(config_ini.get("obspyDMT", "export_type"))
         
         if self.samplingrate and self.instrument_correction:
             self.wav_file_name_part = 'WAV_processed'
@@ -217,7 +222,9 @@ def read_station_information(inp):
                                                             "None", "None", "10", "None"])
     return df
 
-# --- combine_wav_files
+
+'''
+# --- combine_wav_files 
 
 def multicha_multiday_wav_files(inp, df):
     
@@ -238,7 +245,9 @@ def multicha_multiday_wav_files(inp, df):
         for day in nr_days:
             print('\t', day)
             selected_df = df[df['mode'] == day]
-            avail_cha = df.loc[(df['station'] == 'DSB') & (df['mode'] < 'continuous2')]['channel']
+            
+            
+            avail_cha = df.loc[(df['station'] == sta) & (df['mode'] == day)]['channel']
 
             for cha in avail_cha:
                 counter = 0
@@ -247,26 +256,30 @@ def multicha_multiday_wav_files(inp, df):
                 if 'Z' in cha:
                     z_file = glob.glob(os.path.join(inp.save_path, day, inp.wav_file_name_part, f'{net}.{sta}.{loc}.{cha}*.WAV'))[0]
                     sound_z = AudioSegment.from_wav(z_file)
+                    # sound_e = sound_e.normalize(50)
                     counter += 1
                     print('\t\t', cha)
                 if 'N' in cha:
                     n_file = glob.glob(os.path.join(inp.save_path, day, inp.wav_file_name_part,f'{net}.{sta}.{loc}.{cha}*.WAV'))[0]
                     sound_n = AudioSegment.from_wav(n_file)
+                    # sound_e = sound_e.normalize(50)
                     counter += 1
                     print('\t\t', cha)
                 if 'E' in cha:
                     # import ipdb; ipdb.set_trace()
                     e_file = glob.glob(os.path.join(inp.save_path, day, inp.wav_file_name_part,f'{net}.{sta}.{loc}.{cha}*.WAV'))[0]
                     sound_e = AudioSegment.from_wav(e_file)
+                    # sound_e = sound_e.normalize(50)
                     counter += 1
                     print('\t\t', cha)
             
             mutli_channel = AudioSegment.from_mono_audiosegments(sound_n, sound_e, sound_z)
+            
             if inp.save_single_multichannel:
                 path_2_save = os.path.join(inp.save_path, day, inp.wav_file_name_part,f'{net}.{sta}.{loc}.{cha}_multichannel.WAV')
                 mutli_channel.export(path_2_save, format="WAV")
                 # import ipdb; ipdb.set_trace()
-
+            # import ipdb; ipdb.set_trace()
             collect_multichannels += mutli_channel
         
         # --- export multichannel and multiday WAV file 
@@ -341,7 +354,7 @@ def multicha_wav_files(inp, df):
                 mutli_channel.export(path_2_save, format="WAV")
                 # import ipdb; ipdb.set_trace()
 
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         # try:
         #     hhz = 
         #     hhe = ''
@@ -349,9 +362,9 @@ def multicha_wav_files(inp, df):
         # except Exception as exp:
         #     cprint("src_sac2wav.py", "[INFO]", bc.green, f"{sta} is missing a channel. Generating empty channel.")
 
+'''
 
-
-    """
+"""
     combined_sounds = sound1 + sound2 + sound3 
     combined_sounds.export("joinedFile.wav", format="wav")
     
@@ -433,60 +446,84 @@ target_cha = [
                 ["VM1", "VM2", "VMZ", "VDH"]
             ]
 
-def generate_output_folders(mode, save_path):
-    # Create a WAV folder if it does not already exisit
-    if mode == 'event':
-        wav_save = os.path.join(save_path, 'WAV_events')
-        if not os.path.isdir(wav_save):
-            os.makedirs(wav_save)
+# def generate_output_folders(mode, save_path):
+#     # Create a WAV folder if it does not already exisit
+#     if mode == 'event':
+#         wav_save = os.path.join(save_path, 'WAV_events')
+#         if not os.path.isdir(wav_save):
+#             os.makedirs(wav_save)
 
-    elif mode == 'continuous':
-        wav_save = os.path.join(save_path, f'WAV_continuous')
-        if not os.path.isdir(wav_save):
-            os.makedirs(wav_save)
+#     elif mode == 'continuous':
+#         wav_save = os.path.join(save_path, f'WAV_continuous')
+#         if not os.path.isdir(wav_save):
+#             os.makedirs(wav_save)
 
-    elif mode == 'day':
-        wav_save = os.path.join(save_path, 'WAV_day')
-        if not os.path.isdir(wav_save):
-            os.makedirs(wav_save)
-    else:
-        sys.exit(f'Mode: {mode} does not exist or is not implemented. Forced exit!')
+#     elif mode == 'day':
+#         wav_save = os.path.join(save_path, 'WAV_day')
+#         if not os.path.isdir(wav_save):
+#             os.makedirs(wav_save)
+#     else:
+#         sys.exit(f'Mode: {mode} does not exist or is not implemented. Forced exit!')
 
-    # Create folder to save figs
-    save_fig_path = os.path.join(save_path, 'plots')
-    if not os.path.isdir(save_fig_path):
-        os.makedirs(save_fig_path)
+#     # Create folder to save figs
+#     save_fig_path = os.path.join(save_path, 'plots')
+#     if not os.path.isdir(save_fig_path):
+#         os.makedirs(save_fig_path)
     
-    return wav_save, save_fig_path
+#     return wav_save, save_fig_path
 
 # ---
-def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_continuous, station_selection, channel_selection,
-                      framerate, bitrate, norm, wav_save, plot_waveforms):
+def multicha_multiday_wav_files2(inp, df):
 
-    fsr = open(os.path.join(wav_save, 'sampling_rate_information.txt'), 'w')
+    # previous input:
+    # df, poly_wav, dmt_folder, folder_to_process, ...
+    #    proc_wavs_continuous, station_selection, channel_selection, ...
+    #    framerate, bitrate, norm, wav_save, plot_waveforms
+
+    if inp.samplingrate and inp.instrument_correction:
+        folder_to_process = 'processed'
+        wav_save = 'WAV_processed'
+        proc_folder = 'processed'
+        fold_2_proc = 'p'
+    elif inp.samplingrate and (not inp.instrument_correction):
+        folder_to_process = 'proc_resamp'
+        wav_save = 'WAV_resamp'
+        proc_folder = 'proc_resamp'
+        fold_2_proc = 'r'
+    elif inp.instrument_correction and (not inp.samplingrate):
+        folder_to_process = 'proc_instr'
+        wav_save = 'WAV_instr'
+        proc_folder = 'proc_instr'
+        fold_2_proc = 'i'
+    elif (not inp.instrument_correction) and (not inp.samplingrate):
+        folder_to_process = 'proc_noinstr_noresamp'
+        wav_save = 'WAV_noinstr_noresamp'
+        proc_folder = 'proc_noinstr_noresamp'
+        fold_2_proc = 'ninr'
+    else:
+        sys.exit(f'{folder_to_process} is not defines. Forced Exit.')
+        # return False
+
+    fsr = open(os.path.join(inp.save_path, 'sampling_rate_information.txt'), 'w')
     fsr.write('# station \t|\t channel \t|\t sampling rate \t|\t frame rate \t|\t conversion: 60 min SAC to XX min WAV \n')
 
     uniq_modes = natsorted(df['mode'].unique())
     uniq_sta = df['station'].unique()
 
-    if folder_to_process in 'processed':
-        proc_folder = 'processed'
-        fold_2_proc = 'p'
-    elif folder_to_process in 'proc_resamp':
-         proc_folder = 'proc_resamp'
-         fold_2_proc = 'r'
-    elif folder_to_process in 'proc_instr':
-        proc_folder = 'proc_instr'
-        fold_2_proc = 'i'
-    elif folder_to_process in 'noinstr_noresamp':
-        proc_folder = 'proc_noinstr_noresamp'
-        fold_2_proc = 'ninr'
-    else:
-        sys.exit(f'{folder_to_process} is not defines. Forced Exit.')
-
     counter = 0
     days_to_proc = []
-    all_folders = natsorted (glob.glob(os.path.join(dmt_folder, f'continuous*')))
+
+    # read: start_date | how many days after startdate | how many waveforms/chunks
+    if inp.export_type == 0:
+        proc_wavs_continuous = [inp.start_time, '*' , '*']  # or for days '*' | start_time can also be in this format 'YYYY-MM-DD'
+    elif inp.export_type == 1:
+        proc_wavs_continuous = [inp.start_time, '*' , 1]
+    else:
+        cprint("src_sac2wav.py", "[WARNING]", bc.orange, f'This export type >>>{inp.export_type}<<< is not implemented. Try another setting please. Forced exit for now.')
+        sys.exit()
+    
+    # dmt_folder = path_to_obspy
+    all_folders = natsorted(glob.glob(os.path.join(inp.save_path, f'continuous*')))
     for folder in all_folders:
         pklo = open(os.path.join(folder, 'info', 'event.pkl'), 'rb')
         pkll = pkl.load(pklo)
@@ -505,25 +542,47 @@ def export_continuous(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_con
         days_to_proc.append(cont_folder)
         counter += 1
 
+    station_selection = '*'
+    channel_selection = '*'
+    # WAV settings
+    framerate = inp.framerate
+    bitrate = inp.bitrate
+    norm = -9
+    
+    if inp.export_type == 0:
+        poly_wav = True
+    elif inp.export_type == 1:
+        poly_wav = False
+    else:
+        cprint("src_sac2wav.py", "[WARNING]", bc.orange, f'This export type {inp.export_type} is not implemented. Try another setting please. Forced exit for now.')
+        sys.exit()
+        
+    dmt_folder = inp.save_path
+    
+    if inp.mode == 'event':
+        proc_wavs_events = ['*_*.*'] 
+        export_event(df, poly_wav, dmt_folder, folder_to_process, 
+                     proc_wavs_events, station_selection, channel_selection, 
+                     framerate, bitrate, dmt_folder)
+    
     if proc_wavs_continuous[2] == '*':
         chunk_to_proc = days_to_proc
         print(f'Days to process:\n\t{chunk_to_proc}')
         proc_continuous(df, uniq_sta, station_selection, channel_selection,target_cha, uniq_modes, chunk_to_proc, proc_folder, 
-                        framerate, bitrate, norm, poly_wav, fsr, fold_2_proc, dmt_folder, wav_save, plot_waveforms)
+                        framerate, bitrate, norm, poly_wav, fsr, fold_2_proc, dmt_folder)
 
     else:
         chunks_to_proc = list(chunks(days_to_proc, proc_wavs_continuous[2] ))
         for chunk_to_proc in chunks_to_proc:
             print(f'Days to process:\n\t{chunk_to_proc}')
             proc_continuous(df, uniq_sta, station_selection, channel_selection,target_cha, uniq_modes, chunk_to_proc, proc_folder, 
-                            framerate, bitrate, norm, poly_wav, fsr, fold_2_proc, dmt_folder, wav_save, plot_waveforms)
-
+                            framerate, bitrate, norm, poly_wav, fsr, fold_2_proc, dmt_folder)
 
     fsr.close()
 
 # ---
 def proc_continuous(df, uniq_sta, station_selection, channel_selection, target_cha, uniq_modes, days_to_proc, proc_folder, 
-                    framerate, bitrate, norm, poly_wav, fsr, fold_2_proc, dmt_folder, wav_save, plot_waveforms):
+                    framerate, bitrate, norm, poly_wav, fsr, fold_2_proc, dmt_folder):
 
     for i, sta in enumerate(uniq_sta):
         if station_selection != '*' and not sta in station_selection:
@@ -722,24 +781,27 @@ def proc_continuous(df, uniq_sta, station_selection, channel_selection, target_c
                 except Exception as exp:
                     print(f'\n\nError: {exp}\nFor station:{sta}')
                     continue
-
-                if plot_waveforms:
-                    plot_waves(sta, collect_tr, collect_cha, tr.stats.sampling_rate, tr.stats.network, tr.stats.location, 'continuous', proc_folder, wav_save)
-
+                
                 if poly_wav:
-                    file_name = (f'{tr.stats.network}_{tr.stats.station}_{tr.stats.location}_{cha_output}_{fold_2_proc}_{st[0].stats.starttime.date.year}-{st[0].stats.starttime.date.month:02d}-'
+                    file_name = (f'{tr.stats.network}.{tr.stats.station}.{tr.stats.location}.{cha_output}_{fold_2_proc}_{st[0].stats.starttime.date.year}-{st[0].stats.starttime.date.month:02d}-'
                                 f'{st[0].stats.starttime.date.day:02d}_{st[0].stats.endtime.date.year}-'
                                 f'{st[0].stats.endtime.date.month:02d}-{st[0].stats.endtime.date.day:02d}.WAV')
-
-                    path_file_wav = os.path.join(wav_save, file_name)
+                    
+                    if not os.path.isdir(os.path.join(dmt_folder, 'multi_channel_multi_day')):
+                         os.makedirs(os.path.join(dmt_folder, 'multi_channel_multi_day'))
+                    
+                    path_file_wav = os.path.join(dmt_folder, 'multi_channel_multi_day', file_name)
                     with SoundFile(path_file_wav, 'w', samplerate=framerate, channels=4, 
                                     subtype=bitrate, endian=None, format=None, closefd=True) as f:
                         f.write(collect_tr)
                     f.close()
 
                 else:
+                    if not os.path.isdir(os.path.join(dmt_folder, 'multi_channel')):
+                         os.makedirs(os.path.join(dmt_folder, 'multi_channel'))
+                         
                     for j, cha in enumerate(collect_cha):
-                        path_file_wav = os.path.join(wav_save, "%s_%s_%s.WAV" % (tr.stats.station, cha, tr.stats.starttime))
+                        path_file_wav = os.path.join(dmt_folder, 'multi_channel', "%s_%s_%s.WAV" % (tr.stats.station, cha, tr.stats.starttime))
                         with SoundFile(path_file_wav, 'w', samplerate=framerate, channels=1, 
                                     subtype=bitrate, endian=None, format=None, closefd=True) as f:
                             f.write(collect_tr[:,j])
@@ -752,7 +814,7 @@ def proc_continuous(df, uniq_sta, station_selection, channel_selection, target_c
 
 # ---
 def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, station_selection, channel_selection,
-                      framerate, bitrate, wav_save, plot_waveforms):
+                      framerate, bitrate, wav_save):
 
     # save this in the WAV folder
     fsr = open(os.path.join(wav_save, 'sampling_rate_information.txt'), 'w')
@@ -791,7 +853,7 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
     elif folder_to_process in 'noinstr_noresamp':
         proc_folder = 'proc_noinstr_noresamp'
     else:
-        sys.exit(f'{folder_tor_process} is not defines. Forced Exit.')
+        sys.exit(f'{folder_to_process} is not defines. Forced Exit.')
 
     for mod in uniq_modes:
         if mod not in days_to_proc:
@@ -948,9 +1010,6 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
                         print(f'\n\nError: {exp}\nFor station:{sta}')
                         continue
 
-                    if plot_waveforms:
-                        plot_waves(sta, collect_tr, collect_cha, tr.stats.sampling_rate, tr.stats.network, tr.stats.location, f'day_{mod}', proc_folder, wav_save)
-
                     if poly_wav:
                         file_name = (f'{tr.stats.network}.{tr.stats.station}.{tr.stats.location}_{collect_cha[0]}_{collect_cha[1]}_{collect_cha[2]}_{collect_cha[3]}_{folder_to_process}_{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
                                     f'{tr.stats.starttime.date.day:02d}T{tr.stats.starttime.time.hour:02d}-'
@@ -978,7 +1037,7 @@ def export_day(df, poly_wav, dmt_folder, folder_to_process, proc_wavs_days, stat
 # ---
 def export_event(df, poly_wav, dmt_folder, folder_to_process, 
                  proc_wavs_events, station_selection, channel_selection, 
-                 framerate, bitrate, wav_save, plot_waveforms):
+                 framerate, bitrate, wav_save):
     
 
     # save this in the WAV folder
@@ -997,7 +1056,7 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
     elif folder_to_process in 'noinstr_noresamp':
         proc_folder = 'proc_noinstr_noresamp'
     else:
-        sys.exit(f'{folder_tor_process} is not defines. Forced Exit.')
+        sys.exit(f'{folder_to_process} is not defines. Forced Exit.')
     
     for mod in uniq_modes:
         
@@ -1153,66 +1212,30 @@ def export_event(df, poly_wav, dmt_folder, folder_to_process,
                         print(f'\n\nError: {exp}\nFor station:{sta}')
                         continue
                 
-                    if plot_waveforms:
-                        date_name = (f'{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
-                            f'{tr.stats.starttime.date.day:02d}T{tr.stats.starttime.time.hour:02d}-'
-                            f'{tr.stats.starttime.time.minute:02d}-{tr.stats.starttime.time.second:02d}')
-                        plot_waves(sta, collect_tr, collect_cha, tr.stats.sampling_rate,  tr.stats.network, tr.stats.location, date_name, proc_folder, wav_save)
+                    # if poly_wav:
+                    file_name = (f'{tr.stats.network}.{tr.stats.station}.{tr.stats.location}_{collect_cha[0]}_{collect_cha[1]}_{collect_cha[2]}_{collect_cha[3]}_{folder_to_process}_{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
+                                    f'{tr.stats.starttime.date.day:02d}T{tr.stats.starttime.time.hour:02d}-'
+                                    f'{tr.stats.starttime.time.minute:02d}-{tr.stats.starttime.time.second:02d}.WAV')
+                    path_file_wav = os.path.join(wav_save, file_name)
+                    with SoundFile(path_file_wav, 'w', samplerate=framerate, channels=4, 
+                                    subtype=bitrate, endian=None, format=None, closefd=True) as f:
+                        f.write(collect_tr)
+                    f.close()
 
-                    if poly_wav:
-                        file_name = (f'{tr.stats.network}.{tr.stats.station}.{tr.stats.location}_{collect_cha[0]}_{collect_cha[1]}_{collect_cha[2]}_{collect_cha[3]}_{folder_to_process}_{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
-                                        f'{tr.stats.starttime.date.day:02d}T{tr.stats.starttime.time.hour:02d}-'
-                                        f'{tr.stats.starttime.time.minute:02d}-{tr.stats.starttime.time.second:02d}.WAV')
-                        path_file_wav = os.path.join(wav_save, file_name)
-                        with SoundFile(path_file_wav, 'w', samplerate=framerate, channels=4, 
-                                        subtype=bitrate, endian=None, format=None, closefd=True) as f:
-                            f.write(collect_tr)
-                        f.close()
+                    # else:
+                    #     for j, cha in enumerate(collect_cha):
+                    #         file_name = (f'{tr.id}_{folder_to_process}_{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
+                    #                     f'{tr.stats.starttime.date.day:02d}T{tr.stats.starttime.time.hour:02d}-'
+                    #                     f'{tr.stats.starttime.time.minute:02d}-{tr.stats.starttime.time.second:02d}.WAV')
+                    #         path_file_wav = os.path.join(wav_save, file_name)
+                    #         with SoundFile(path_file_wav, 'w', samplerate=framerate, channels=1, 
+                    #                     subtype=bitrate, endian=None, format=None, closefd=True) as f:
+                    #             f.write(collect_tr[:,j])
 
-                    else:
-                        for j, cha in enumerate(collect_cha):
-                            file_name = (f'{tr.id}_{folder_to_process}_{tr.stats.starttime.date.year}-{tr.stats.starttime.date.month:02d}-'
-                                        f'{tr.stats.starttime.date.day:02d}T{tr.stats.starttime.time.hour:02d}-'
-                                        f'{tr.stats.starttime.time.minute:02d}-{tr.stats.starttime.time.second:02d}.WAV')
-                            path_file_wav = os.path.join(wav_save, file_name)
-                            with SoundFile(path_file_wav, 'w', samplerate=framerate, channels=1, 
-                                        subtype=bitrate, endian=None, format=None, closefd=True) as f:
-                                f.write(collect_tr[:,j])
-
-                            f.close()
+                    #         f.close()
     # clear memory
     del collect_tr, h_da, z_da, e_da, n_da
     fsr.close()
-
-# ---
-def plot_waves(sta, collect_tr, collect_cha, sampling_rate, network, location, date_name, proc_folder, wav_save):
-
-    plt.ioff()
-    fig, axs = plt.subplots(4,2, figsize=(15, 15), facecolor='w', edgecolor='k')
-    axs = axs.ravel()
-    fig.subplots_adjust(hspace = 0.5, wspace=0.5)
-
-    j = 0
-    for i, cha in enumerate(collect_cha):
-
-        # data = collect_tr[:,i] / abs(collect_tr[:,i]).max()
-        data = collect_tr[:,i]
-        
-        axs[j].plot(data)
-        axs[j].set_title(cha, weight='bold')
-        axs[j].set_xlabel('samples')
-        axs[j].set_ylabel('normalized')
-        
-        axs[j+1].magnitude_spectrum(data, Fs=sampling_rate, color='C2', alpha=0.5)
-        axs[j+1].set_title(f'Spectrum: {cha}', weight='bold')
-        axs[j+1].set_xscale('log')
-        axs[j+1].set_xlim(0.001, 30)
-        j += 2
-
-    plt.savefig(os.path.join(wav_save, f'{network}.{sta}.{location}_{collect_cha[0]}_{collect_cha[1]}_{collect_cha[2]}_{collect_cha[3]}_{proc_folder}_{date_name}.png'), dpi=300)
-    plt.clf()
-    plt.close()
-
 
 # ---
 def length_checker(st):

@@ -175,6 +175,9 @@ def process_unit(tr_add, target_path, input_dics, staev_ar):
         data = tr.data / abs(tr.data).max()
         f.write(data*0.95)
         
+        # no normalisation before saving to "simple wav file"
+        # f.write(tr.data)
+        
         print("Writing WAV file for %s" % tr.id)
     
     f.close() 
