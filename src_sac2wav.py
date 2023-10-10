@@ -1250,7 +1250,17 @@ def length_checker(st):
         endtime.append(tr.stats.endtime)
     
     if len(np.unique(samples)) > 1:
-        st.trim()
+        # import ipdb; ipdb.set_trace()
+        # min_starttime = min(starttime)
+        min_samples = min(samples)
+        # st_samplingrate = st[0].stats.sampling_rate
+        # time_to_add = st_samplingrate/st_samplingrate/60/60/24
+        # st.trim(min_starttime, min_starttime+time_to_add)
+        
+        for tr in st:
+            tr.data = tr.data[:min_samples]
+            print(len(tr.data))
+        
         return st
     else:
         return st
